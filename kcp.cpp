@@ -92,7 +92,7 @@ int Kcp::KcpOutput(const char *buf, int len, ikcpcb *kcp, void *user)
 {
     Kcp *__kcp = static_cast<Kcp *>(user);
     if (buf && len > 0) {
-        LOGD("sendto [%s:%d]", inet_ntoa(__kcp->mAttr.addr.sin_addr), ntohs(__kcp->mAttr.addr.sin_port));
+        LOGD("kcp callback. sendto [%s:%d]", inet_ntoa(__kcp->mAttr.addr.sin_addr), ntohs(__kcp->mAttr.addr.sin_port));
         return ::sendto(__kcp->mAttr.fd, buf, len, 0, (sockaddr *)&__kcp->mAttr.addr, sizeof(sockaddr_in));
     }
 
