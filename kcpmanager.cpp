@@ -101,7 +101,6 @@ void KcpManager::idle()
             // 将等待队列中的kcp加入epoll
             AutoLock<Mutex> lock(mQueueMutex);
             // 负载均衡, 将kcp绑定线程, 否则可能会导致大部分kcp跑在某一个线程，而其他线程没啥任务
-            // TODO: mWaitingQueue包含待移除的事件，不能这样做
             if (localEventCount < maxEvents) {
                 for (auto it = mWaitingQueue.begin(); it != mWaitingQueue.end(); ++it) {
                     switch (it->second) {
