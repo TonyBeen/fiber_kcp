@@ -52,7 +52,7 @@ bool Kcp::installRecvEvent(Callback onRecvEvent)
 void Kcp::send(const eular::ByteBuffer &buffer)
 {
     eular::AutoLock<eular::Mutex> lock(mQueueMutex);
-    int ret = ikcp_send(mKcpHandle, (const char *)(buffer.const_data()), buffer.size());
+    ikcp_send(mKcpHandle, (const char *)(buffer.const_data()), buffer.size());
 }
 
 bool Kcp::setAttr(const KcpAttr &attr)

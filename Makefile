@@ -1,5 +1,5 @@
 CC = g++
-CPPFLAGS = -std=c++11 -Wall -g
+CPPFLAGS = -std=c++11 -g
 SOFLAGS = -fPIC
 
 TARGET = libkcp.so
@@ -35,7 +35,7 @@ all :
 	make test
 
 $(TARGET) : $(OBJ_LIST)
-	$(CC) $^ -o $@ $(SO_LIB_LIST)
+	$(CC) $^ -o $@ $(SO_LIB_LIST) -shared
 
 test : kcp_server kcp_client
 
