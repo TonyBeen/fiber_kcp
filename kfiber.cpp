@@ -9,7 +9,6 @@
 #include <log/log.h>
 #include <atomic>
 #include <exception>
-#include <ucontext.h>
 
 #define LOG_TAG "KFiber"
 

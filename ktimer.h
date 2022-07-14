@@ -15,6 +15,7 @@
 #include <stdint.h>
 #include <set>
 #include <memory>
+#include <list>
 #include <functional>
 
 using namespace eular;

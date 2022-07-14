@@ -5,7 +5,7 @@
     > Created Time: Sun 27 Feb 2022 04:47:10 PM CST
  ************************************************************************/
 
-#include "thread.h"
+#include "kthread.h"
 #include <utils/utils.h>
 #include <utils/exception.h>
 #include <log/log.h>

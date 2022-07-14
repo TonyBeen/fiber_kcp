@@ -10,6 +10,7 @@ SO_LIB_PATH = -L.
 SO_LIB_LIST = -lutils -llog -lpthread -ldl
 
 SRC_DIR = .
+TEST_SRC_DIR = ./test
 
 SRC_LIST = 						\
 	$(SRC_DIR)/ikcp.c			\
@@ -29,11 +30,16 @@ OBJ_LIST =						\
 	$(SRC_DIR)/kthread.o		\
 	$(SRC_DIR)/ktimer.o			\
 
+TEST_SRC_LIST = 						\
+	$(TEST_SRC_DIR)/test_kcp_server.cc	\
 
 all :
 	make $(TARGET)
 
 $(TARGET) : $(OBJ_LIST)
+	$(CC) $^ -o $@ $(SO_LIB_LIST)
+
+kcp_server : $(TEST_SRC_LIST) $(SRC_LIST)
 	$(CC) $^ -o $@ $(SO_LIB_LIST)
 
 %.o : %.cpp
