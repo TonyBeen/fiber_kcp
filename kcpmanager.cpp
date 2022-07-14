@@ -50,7 +50,7 @@ KcpManager::KcpManager(uint8_t threads, bool userCaller, const String8 &name) :
 
 KcpManager::~KcpManager()
 {
-
+    stop();
 }
 
 bool KcpManager::addKcp(Kcp::SP kcp)

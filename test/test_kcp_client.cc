@@ -20,6 +20,11 @@ using namespace std;
 #define SERVER_IP   "127.0.0.1"
 #define SERVER_PORT 12000
 
+void onReadEvent(ByteBuffer &buffer, sockaddr_in addr)
+{
+    LOGI("%s() %s [%s:%d]", __func__, (char *)buffer.data(), inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+}
+
 void signalCatch(int sig)
 {
     if (sig == SIGSEGV) {
@@ -59,14 +64,21 @@ int main(int argc, char **argv)
     attr.interval = 50;
 
     Kcp::SP kcp(new Kcp(attr));
+    kcp->installRecvEvent(std::bind(onReadEvent, std::placeholders::_1, std::placeholders::_2));
 
     KcpManager *manager = KcpManagerInstance::get(1, false, "test_kcp_client");
     manager->addKcp(kcp);
 
     char buf[128] = {0};
+    uint16_t times = 0;
     while (true) {
-        fgets(buf, sizeof(buf), STDIN_FILENO);
+        snprintf(buf, sizeof(buf), "Hello (times: %d)", ++times);
         kcp->send(ByteBuffer((uint8_t *)buf, strlen(buf)));
+        printf("send -> %s\n", buf);
+        sleep(1);
+        if (times == 0xff) {
+            break;
+        }
     }
 
     return 0;

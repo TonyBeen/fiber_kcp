@@ -121,7 +121,17 @@ void Kcp::inputRoutine()
         int ret = ikcp_input(mKcpHandle, (char *)buffer.data(), buffer.size());
         if (ret < 0) {
             LOGE("ikcp_input error. %d", ret);
-        } else {
+            return;
+        }
+        ret = ikcp_peeksize(mKcpHandle);
+        LOGD("%s() %d can read", __func__, ret);
+        if (ret < 0) {
+            return;
+        }
+        buffer.resize(ret + 1);
+        int nrecv = ikcp_recv(mKcpHandle, (char *)buffer.data(), ret);
+        if (nrecv > 0) {
+            buffer.setDataSize(ret);
             mRecvEvent(buffer, peerAddr);
         }
     }
@@ -131,4 +141,5 @@ void Kcp::outputRoutine()
 {
     eular::AutoLock<eular::Mutex> lock(mQueueMutex);
     ikcp_update(mKcpHandle, Time::Abstime());
+    LOGD("%s()", __func__);
 }

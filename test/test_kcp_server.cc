@@ -48,6 +48,11 @@ int createSocket()
     return server_fd;
 }
 
+void onReadEvent(ByteBuffer &buffer, sockaddr_in addr)
+{
+    LOGI("%s() %s [%s:%d]", __func__, (char *)buffer.data(), inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+}
+
 void signalCatch(int sig)
 {
     CallStack stack;
@@ -93,9 +98,10 @@ int main(int argc, char **argv)
     attr.interval = 50;
 
     Kcp::SP kcp(new Kcp(attr));
+    kcp->installRecvEvent(std::bind(onReadEvent, std::placeholders::_1, std::placeholders::_2));
 
     manager->addKcp(kcp);
     KcpManager::GetMainFiber()->resume();
-    manager->stop();
+
     return 0;
 }
