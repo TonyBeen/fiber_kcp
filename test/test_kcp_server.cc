@@ -50,7 +50,7 @@ int createSocket()
 
 void onReadEvent(ByteBuffer &buffer, sockaddr_in addr)
 {
-    LOGI("%s() %s [%s:%d]", __func__, (char *)buffer.data(), inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+    LOGI("%s() [%s] [%s:%d]", __func__, (char *)buffer.data(), inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
 }
 
 void signalCatch(int sig)

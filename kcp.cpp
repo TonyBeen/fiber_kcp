@@ -125,7 +125,6 @@ void Kcp::inputRoutine()
             return;
         }
         ret = ikcp_peeksize(mKcpHandle);
-        LOGD("%s() %d can read", __func__, ret);
         if (ret < 0) {
             return;
         }
