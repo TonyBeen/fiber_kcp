@@ -67,7 +67,6 @@ void KScheduler::start()
 {
     if (mStopping) {
         LOG_ASSERT(mThreads.empty(), "should be empty before start()");
-        mThreads.resize(mThreadCount);
         mStopping = false;
         for (uint8_t i = 0; i < mThreadCount; ++i) {
             Thread::SP ptr(new (std::nothrow)Thread(std::bind(&KScheduler::threadloop, this),
@@ -127,7 +126,7 @@ void KScheduler::switchTo(int th)
 
 void KScheduler::threadloop()
 {
-    LOGD("KScheduler::threadloop() in %s:%d", Thread::GetName().c_str(), Thread::GetThis()->getTid());
+    LOGD("KScheduler::threadloop() in %s:%p", Thread::GetName().c_str(), Thread::GetThis());
     setThis();
     if (gettid() != mRootThread) {
         gMainFiber = KFiber::GetThis().get();   // 为每个线程创建主协程

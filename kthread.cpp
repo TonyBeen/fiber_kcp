@@ -100,5 +100,6 @@ void *Thread::entrance(void *arg)
     cb.swap(th->mCb);
 
     cb();
+    gThread = nullptr;
     return nullptr;
 }

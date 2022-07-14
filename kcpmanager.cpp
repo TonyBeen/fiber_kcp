@@ -20,8 +20,6 @@ using namespace eular;
 
 static uint32_t epoll_event_size = 1024;
 
-thread_local std::list<Kcp::SP>    gKcpList;
-
 KcpManager::KcpManager(uint8_t threads, bool userCaller, const String8 &name) :
     KScheduler(threads, userCaller, name),
     mEventCount(0),
@@ -47,6 +45,7 @@ KcpManager::KcpManager(uint8_t threads, bool userCaller, const String8 &name) :
     if (ret < 0) {
         LOGE("epoll_ctl error. [%d, %s]", errno, strerror(errno));
     }
+    start();
 }
 
 KcpManager::~KcpManager()
@@ -86,7 +85,7 @@ KcpManager *KcpManager::GetThis()
 
 void KcpManager::idle()
 {
-    uint32_t maxEvents = epoll_event_size / mThreadCount + 1;
+    uint32_t maxEvents = epoll_event_size / (mThreadCount ? mThreadCount : 1) + 1;
     epoll_event *events = new epoll_event[maxEvents]();
     std::shared_ptr<epoll_event> ptr(events, [](epoll_event *p) {
         if (p) {

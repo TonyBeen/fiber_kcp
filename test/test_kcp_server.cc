@@ -50,15 +50,18 @@ int createSocket()
 
 void signalCatch(int sig)
 {
-    if (sig == SIGSEGV) {
-        CallStack stack;
-        stack.update();
-        stack.log(LOG_TAG, eular::LogLevel::FATAL);
-    }
+    CallStack stack;
+    stack.update();
+    stack.log(LOG_TAG, eular::LogLevel::FATAL);
+
+    exit(0);
 }
 
 int main(int argc, char **argv)
 {
+    signal(SIGSEGV, signalCatch);
+    signal(SIGABRT, signalCatch);
+
     KcpManager *manager = KcpManagerInstance::get(1, true, "test_kcp_server");
 
     int udp = createSocket();
@@ -93,5 +96,6 @@ int main(int argc, char **argv)
 
     manager->addKcp(kcp);
     KcpManager::GetMainFiber()->resume();
+    manager->stop();
     return 0;
 }

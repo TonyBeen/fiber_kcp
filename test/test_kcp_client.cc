@@ -20,8 +20,19 @@ using namespace std;
 #define SERVER_IP   "127.0.0.1"
 #define SERVER_PORT 12000
 
+void signalCatch(int sig)
+{
+    if (sig == SIGSEGV) {
+        CallStack stack;
+        stack.update();
+        stack.log(LOG_TAG, eular::LogLevel::FATAL);
+    }
+    exit(0);
+}
+
 int main(int argc, char **argv)
 {
+    signal(SIGSEGV, signalCatch);
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd < 0) {
         perror("create socket fail!");
