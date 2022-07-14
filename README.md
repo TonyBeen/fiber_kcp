@@ -1,2 +1,3 @@
-# fiber_kcp
-bind KCP to thread
+##### 架构
+
+https://github.com/skywind3000/kcp
