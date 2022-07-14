@@ -174,6 +174,7 @@ void KcpManager::idle()
             break;
         }
 
+        LOGD("%s() timeoutms %lu\n", __func__, timeoutms);
         int nev = 0;
         do {
             nev = epoll_wait(mEpollFd, events, maxEvents, timeoutms);

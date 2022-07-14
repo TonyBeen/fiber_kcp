@@ -25,10 +25,10 @@ KTimer::KTimer() :
 
 KTimer::KTimer(uint64_t ms, CallBack cb, uint32_t recycle, uint32_t tid) :
     mTid(tid),
-    mTime(ms),
     mCb(cb),
     mRecycleTime(recycle)
 {
+    mTime = CurrentTime() + ms;
     mUniqueId = ++gUniqueIdCount;
 }
 
@@ -89,7 +89,7 @@ void KTimer::reset(uint64_t ms, KTimer::CallBack cb, uint32_t recycle, uint32_t 
         return;
     }
 
-    mTime = ms;
+    mTime = CurrentTime() + ms;
     mCb = cb;
     mRecycleTime = recycle;
     mTid = tid;
