@@ -58,9 +58,22 @@ KTimer &KTimer::operator=(const KTimer& timer)
 
 void KTimer::cancel()
 {
+    AutoLock<Mutex> lock(mMutex);
     mTime = 0;
     mCb = nullptr;
     mRecycleTime = 0;
+}
+
+void KTimer::setCallback(CallBack cb)
+{
+    AutoLock<Mutex> lock(mMutex);
+    mCb = cb;
+}
+
+KTimer::CallBack KTimer::getCallback()
+{
+    AutoLock<Mutex> lock(mMutex);
+    return mCb;
 }
 
 void KTimer::update()
@@ -173,7 +186,7 @@ void KTimerManager::listExpiredTimer(std::list<std::pair<std::function<void()>, 
 
     for (auto &timer : expired) {
         if (timer->mCb != nullptr) {    // 排除用户取消的定时器
-            cbs.push_back(std::make_pair(timer->mCb, timer->mTid));
+            cbs.push_back(std::make_pair(timer->getCallback(), timer->mTid));
             if (timer->mRecycleTime) {
                 timer->update();
                 mTimers.insert(timer);

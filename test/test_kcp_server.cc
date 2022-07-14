@@ -26,7 +26,7 @@ int createSocket()
     socklen_t len = sizeof(sockaddr_in);
 
     server_fd = socket(AF_INET, SOCK_DGRAM, 0); // AF_INET:IPV4;SOCK_DGRAM:UDP
-    if(server_fd < 0) {
+    if (server_fd < 0) {
         perror("create socket fail!");
         return -1;
     }
@@ -42,7 +42,7 @@ int createSocket()
         return -1;
     }
 
-    bool reuse = true;
+    int reuse = true;
     assert(0 == setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)));
 
     return server_fd;
@@ -59,7 +59,7 @@ void signalCatch(int sig)
 
 int main(int argc, char **argv)
 {
-    KcpManager *manager = KcpManagerInstance::get(1, true, "test_kcp");
+    KcpManager *manager = KcpManagerInstance::get(1, true, "test_kcp_server");
 
     int udp = createSocket();
     assert(udp > 0);

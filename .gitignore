@@ -35,3 +35,4 @@ kcp
 kcp/*
 
 kcp_server
+kcp_client

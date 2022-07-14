@@ -33,11 +33,11 @@ public:
     uint64_t getTimeout() const { return mTime; }
     uint64_t getUniqueId() const { return mUniqueId; }
     void setNextTime(uint64_t timeMs) { mTime = timeMs; }
-    void setCallback(CallBack cb) { mCb = cb; }
     void setRecycleTime(uint64_t ms) { mRecycleTime = ms; }
+    void setCallback(CallBack cb);
+    CallBack getCallback();
 
     void cancel();
-    void update();
     void reset(uint64_t ms, CallBack cb, uint32_t recycle, uint32_t tid);
 
     static uint64_t CurrentTime();
@@ -67,12 +67,15 @@ protected:
         }
     };
 
+    void update();
+
 private:
     uint32_t    mTid;           // 将定时器与线程绑定
     uint64_t    mTime;          // (绝对时间)下一次执行时间(ms)
     uint64_t    mRecycleTime;   // 循环时间ms
     CallBack    mCb;            // 回调函数
     uint64_t    mUniqueId;      // 定时器唯一ID
+    Mutex       mMutex;
 };
 
 

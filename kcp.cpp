@@ -51,6 +51,7 @@ bool Kcp::installRecvEvent(Callback onRecvEvent)
 
 void Kcp::send(const eular::ByteBuffer &buffer)
 {
+    eular::AutoLock<eular::Mutex> lock(mQueueMutex);
     ikcp_send(mKcpHandle, (const char *)(buffer.const_data()), buffer.size());
 }
 
@@ -71,9 +72,14 @@ uint32_t Kcp::check()
 bool Kcp::init()
 {
     mKcpHandle = ikcp_create(mAttr.conv, this);
+    if (mKcpHandle == nullptr) {
+        return false;
+    }
+
     ikcp_setoutput(mKcpHandle, &Kcp::KcpOutput);
     ikcp_wndsize(mKcpHandle, mAttr.sendWndSize, mAttr.recvWndSize);
     ikcp_nodelay(mKcpHandle, mAttr.nodelay, mAttr.interval, mAttr.fastResend, 0);
+    return true;
 }
 
 bool Kcp::create()
@@ -123,5 +129,6 @@ void Kcp::inputRoutine()
 
 void Kcp::outputRoutine()
 {
+    eular::AutoLock<eular::Mutex> lock(mQueueMutex);
     ikcp_update(mKcpHandle, Time::Abstime());
 }

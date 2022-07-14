@@ -30,16 +30,18 @@ OBJ_LIST =						\
 	$(SRC_DIR)/kthread.o		\
 	$(SRC_DIR)/ktimer.o			\
 
-TEST_SRC_LIST = 						\
-	$(TEST_SRC_DIR)/test_kcp_server.cc	\
-
 all :
 	make $(TARGET)
+	make test
 
 $(TARGET) : $(OBJ_LIST)
 	$(CC) $^ -o $@ $(SO_LIB_LIST)
 
-kcp_server : $(TEST_SRC_LIST) $(SRC_LIST)
+test : kcp_server kcp_client
+
+kcp_server : $(TEST_SRC_DIR)/test_kcp_server.cc $(SRC_LIST)
+	$(CC) $^ -o $@ $(SO_LIB_LIST)
+kcp_client : $(TEST_SRC_DIR)/test_kcp_client.cc $(SRC_LIST)
 	$(CC) $^ -o $@ $(SO_LIB_LIST)
 
 %.o : %.cpp
@@ -51,4 +53,4 @@ kcp_server : $(TEST_SRC_LIST) $(SRC_LIST)
 .PHONY: all $(TARGET) clean
 
 clean :
-	rm -rf $(OBJ_LIST)
+	rm -rf $(OBJ_LIST) kcp_server kcp_client
