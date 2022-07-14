@@ -51,6 +51,7 @@ bool Kcp::installRecvEvent(Callback onRecvEvent)
 
 void Kcp::send(const eular::ByteBuffer &buffer)
 {
+    // TODO: 做缓存队列，当update时从缓存队列拿出，一起发送
     eular::AutoLock<eular::Mutex> lock(mQueueMutex);
     ikcp_send(mKcpHandle, (const char *)(buffer.const_data()), buffer.size());
 }
