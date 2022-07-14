@@ -52,7 +52,7 @@ bool Kcp::installRecvEvent(Callback onRecvEvent)
 void Kcp::send(const eular::ByteBuffer &buffer)
 {
     eular::AutoLock<eular::Mutex> lock(mQueueMutex);
-    ikcp_send(mKcpHandle, (const char *)(buffer.const_data()), buffer.size());
+    int ret = ikcp_send(mKcpHandle, (const char *)(buffer.const_data()), buffer.size());
 }
 
 bool Kcp::setAttr(const KcpAttr &attr)
@@ -90,9 +90,10 @@ bool Kcp::create()
 
 int Kcp::KcpOutput(const char *buf, int len, ikcpcb *kcp, void *user)
 {
-    Kcp *fiber = static_cast<Kcp *>(user);
+    Kcp *__kcp = static_cast<Kcp *>(user);
     if (buf && len > 0) {
-        return ::sendto(fiber->mAttr.fd, buf, len, 0, (sockaddr *)&fiber->mAttr.addr, sizeof(sockaddr));
+        LOGD("sendto [%s:%d]", inet_ntoa(__kcp->mAttr.addr.sin_addr), ntohs(__kcp->mAttr.addr.sin_port));
+        return ::sendto(__kcp->mAttr.fd, buf, len, 0, (sockaddr *)&__kcp->mAttr.addr, sizeof(sockaddr_in));
     }
 
     return 0;
@@ -141,5 +142,4 @@ void Kcp::outputRoutine()
 {
     eular::AutoLock<eular::Mutex> lock(mQueueMutex);
     ikcp_update(mKcpHandle, Time::Abstime());
-    LOGD("%s()", __func__);
 }

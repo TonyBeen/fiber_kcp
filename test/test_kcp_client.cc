@@ -62,6 +62,7 @@ int main(int argc, char **argv)
     attr.autoClose = true;
     attr.conv = conv;
     attr.interval = 50;
+    attr.addr = addr;
 
     Kcp::SP kcp(new Kcp(attr));
     kcp->installRecvEvent(std::bind(onReadEvent, std::placeholders::_1, std::placeholders::_2));

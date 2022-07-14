@@ -101,7 +101,8 @@ void KcpManager::idle()
             // 将等待队列中的kcp加入epoll
             AutoLock<Mutex> lock(mQueueMutex);
             // 负载均衡, 将kcp绑定线程, 否则可能会导致大部分kcp跑在某一个线程，而其他线程没啥任务
-            if ((localEventCount + mWaitingQueue.size()) < maxEvents) {
+            // TODO: mWaitingQueue包含待移除的事件，不能这样做
+            if (localEventCount < maxEvents) {
                 for (auto it = mWaitingQueue.begin(); it != mWaitingQueue.end(); ++it) {
                     switch (it->second) {
                     case KcpState::NOTINIT:
@@ -114,36 +115,44 @@ void KcpManager::idle()
                             break;
                         }
 
-                        epoll_event ev;
                         int fd = it->first->mAttr.fd;
                         int flag = fcntl(fd, F_GETFL);
                         fcntl(fd, F_SETFL, flag | O_NONBLOCK);
-                        ev.data.ptr = it->first.get();
-                        ev.events = EPOLLET | EPOLLIN;
-                        int ret = epoll_ctl(mEpollFd, EPOLL_CTL_ADD, fd, &ev);
-                        if (ret < 0) {
-                            LOGE("epoll_ctl(%d, EPOLL_CTL_ADD , %d) error. [%d, %s]", mEpollFd, fd, errno, strerror(errno));
-                        } else {
-                            ++mEventCount;
+
+                        Context *ctx = nullptr;
+                        {
                             AutoLock<Mutex> lock(mCtxMutex);
                             if (fd >= mContextVec.size()) {
                                 contextResize(fd * 1.5);
                             }
+                            ctx = mContextVec[fd];
+                        }
 
-                            Context *ctx = new Context;
-                            ctx->events = READ;
-                            ctx->fd = fd;
-                            ctx->tid = tid;
-                            ctx->read.cb = std::bind(&Kcp::inputRoutine, it->first.get());
-                            ctx->read.fiber = nullptr;
-                            ctx->read.scheduler = KScheduler::GetThis();
-                            auto timer = addTimer(it->first->mAttr.interval,
-                                std::bind(&Kcp::outputRoutine, it->first.get()),
-                                it->first->mAttr.interval, tid);
-                            LOG_ASSERT2(timer != nullptr);
-                            ctx->timerId = timer->getUniqueId();
-                            LOGD("addTimer() timer id: %lu, interval: %d", timer->getUniqueId(), it->first->mAttr.interval);
-                            mContextVec[fd] = ctx;
+                        LOG_ASSERT2(ctx != nullptr);
+                        ctx->events = READ;
+                        ctx->fd = fd;
+                        ctx->tid = tid;
+                        ctx->read.cb = std::bind(&Kcp::inputRoutine, it->first.get());
+                        ctx->read.fiber = nullptr;
+                        ctx->read.scheduler = KScheduler::GetThis();
+                        auto timer = addTimer(it->first->mAttr.interval,
+                            std::bind(&Kcp::outputRoutine, it->first.get()),
+                            it->first->mAttr.interval, tid);
+                        LOG_ASSERT2(timer != nullptr);
+                        ctx->timerId = timer->getUniqueId();
+                        LOGD("addTimer() timer id: %lu, interval: %d", timer->getUniqueId(), it->first->mAttr.interval);
+                        epoll_event ev;
+                        ev.data.ptr = ctx;
+                        ev.events = EPOLLET | EPOLLIN;
+
+                        int ret = epoll_ctl(mEpollFd, EPOLL_CTL_ADD, fd, &ev);
+                        if (ret < 0) {
+                            LOGE("epoll_ctl(%d, EPOLL_CTL_ADD , %d) error. [%d, %s]", mEpollFd, fd, errno, strerror(errno));
+                            ctx->resetContext(READ);
+                            timer->cancel();
+                        } else {
+                            ++mEventCount;
+                            ++localEventCount;
                         }
                         break;
                     }
@@ -154,10 +163,15 @@ void KcpManager::idle()
                     case KcpState::REMOVE:
                     {
                         epoll_ctl(mEpollFd, EPOLL_CTL_DEL, it->first->mAttr.fd, nullptr);
-                        AutoLock<Mutex> lock(mCtxMutex);
+                        {
+                            AutoLock<Mutex> lock(mCtxMutex);
+                            mContextVec[it->first->mAttr.fd]->resetContext(READ);
+                        }
                         delTimer(mContextVec[it->first->mAttr.fd]->timerId);
-                        mContextVec[it->first->mAttr.fd]->resetContext(READ);
                         --mEventCount;
+                        if (it->first->mBindTid == gettid()) {
+                            --localEventCount;
+                        }
                         break;
                     }
                     default:
@@ -165,7 +179,6 @@ void KcpManager::idle()
                         break;
                     }
                 }
-                localEventCount += mWaitingQueue.size();
                 mWaitingQueue.clear();
             }
         }
@@ -174,7 +187,6 @@ void KcpManager::idle()
             break;
         }
 
-        LOGD("%s() timeoutms %lu\n", __func__, timeoutms);
         int nev = 0;
         do {
             nev = epoll_wait(mEpollFd, events, maxEvents, timeoutms);
@@ -208,6 +220,7 @@ void KcpManager::idle()
             if (ev.events & (EPOLLERR | EPOLLHUP)) {
                 ev.events |= (EPOLLIN | EPOLLOUT) & ctx->events;
             }
+
             if (ev.events | EPOLLIN) {
                 ctx->triggerEvent(READ);
             }
@@ -298,8 +311,8 @@ void KcpManager::Context::triggerEvent(Event event)
 {
     EventContext &eventCtx = getContext(event);
     if (eventCtx.cb) {
-        eventCtx.scheduler->schedule(&eventCtx.cb, tid);
-    } else {
-        eventCtx.scheduler->schedule(&eventCtx.fiber, tid);
+        eventCtx.scheduler->schedule(eventCtx.cb, tid);
+    } else if (eventCtx.fiber) {
+        eventCtx.scheduler->schedule(eventCtx.fiber, tid);
     }
 }
