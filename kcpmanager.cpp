@@ -51,6 +51,16 @@ KcpManager::KcpManager(uint8_t threads, bool userCaller, const String8 &name) :
 KcpManager::~KcpManager()
 {
     stop();
+    AutoLock<Mutex> lock(mCtxMutex);
+    for (auto it : mContextVec) {
+        if (it) {
+            delete it;
+        }
+    }
+    mContextVec.clear();
+    if (mEpollFd) {
+        close(mEpollFd);
+    }
 }
 
 bool KcpManager::addKcp(Kcp::SP kcp)
