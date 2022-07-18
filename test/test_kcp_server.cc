@@ -48,9 +48,12 @@ int createSocket()
     return server_fd;
 }
 
-void onReadEvent(ByteBuffer &buffer, sockaddr_in addr)
+void onReadEvent(Kcp *kcp, ByteBuffer &buffer, sockaddr_in addr)
 {
-    LOGI("%s() [%s] [%s:%d]", __func__, (char *)buffer.data(), inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+    LOGI("%s() [%s](%zu) [%s:%d]", __func__, (char *)buffer.data(), buffer.size(), inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+    uint8_t buf[128] = {0};
+    sprintf((char *)buf, "RECV %zuBytes", buffer.size());
+    kcp->send(ByteBuffer(buf, strlen((char *)buf)));
 }
 
 void signalCatch(int sig)
@@ -99,7 +102,7 @@ int main(int argc, char **argv)
     attr.addr = addr;
 
     Kcp::SP kcp(new Kcp(attr));
-    kcp->installRecvEvent(std::bind(onReadEvent, std::placeholders::_1, std::placeholders::_2));
+    kcp->installRecvEvent(std::bind(onReadEvent, kcp.get(), std::placeholders::_1, std::placeholders::_2));
 
     manager->addKcp(kcp);
     KcpManager::GetMainFiber()->resume();
