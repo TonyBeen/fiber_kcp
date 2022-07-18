@@ -14,6 +14,8 @@
 
 #define LOG_TAG "Kcp"
 
+// TODO 增加心跳检测
+
 Kcp::Kcp() :
     mKcpHandle(nullptr),
     mRecvEvent(nullptr)
@@ -130,6 +132,7 @@ void Kcp::inputRoutine()
             return;
         }
         buffer.resize(ret + 1);
+        buffer.clear();
         int nrecv = ikcp_recv(mKcpHandle, (char *)buffer.data(), ret);
         if (nrecv > 0) {
             buffer.setDataSize(ret);
