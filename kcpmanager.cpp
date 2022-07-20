@@ -82,7 +82,6 @@ bool KcpManager::delKcp(Kcp::SP kcp)
     AutoLock<Mutex> lock(mQueueMutex);
     auto it = mWaitingQueue.find(kcp);
     if (it != mWaitingQueue.end()) {
-        LOGD("kcp map erase fd %d", it->first->mAttr.fd);
         it->second = KcpState::REMOVE;
     }
     return true;

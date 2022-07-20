@@ -34,7 +34,7 @@ public:
     bool hasIdleThread() const { return mIdleThreadCount.load() > 0; }
 
     template<class FiberOrCb>
-    void schedule(FiberOrCb fc, int th = -1)
+    void schedule(FiberOrCb fc, int th = 0)
     {
         bool needTickle = false;
         {

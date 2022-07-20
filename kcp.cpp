@@ -105,7 +105,7 @@ int Kcp::KcpOutput(const char *buf, int len, ikcpcb *kcp, void *user)
 void Kcp::inputRoutine()
 {
     eular::ByteBuffer buffer;
-    uint8_t buf[256] = {0};
+    uint8_t buf[512] = {0};
     sockaddr_in peerAddr;
     socklen_t len = sizeof(sockaddr_in);
     bool hasError = false;
@@ -122,6 +122,8 @@ void Kcp::inputRoutine()
         }
         buffer.append(buf, nrecv);
     }
+
+    LOGD("recvfrom [%s:%d] size %zu", inet_ntoa(peerAddr.sin_addr), ntohs(peerAddr.sin_port), buffer.size());
 
     if (!hasError) {
         int ret = ikcp_input(mKcpHandle, (char *)buffer.data(), buffer.size());

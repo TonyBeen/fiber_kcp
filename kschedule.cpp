@@ -143,7 +143,7 @@ void KScheduler::threadloop()
             AutoLock<Mutex> lock(mQueueMutex);
             auto it = mFiberQueue.begin();
             while (it != mFiberQueue.end()) {
-                if (it->tid != -1 && it->tid != gettid()) {   // 不满足线程ID一致的条件
+                if (it->tid != 0 && it->tid != gettid()) {   // 不满足线程ID一致的条件
                     ++it;
                     needTickle = true;
                     continue;

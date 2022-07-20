@@ -36,3 +36,4 @@ kcp/*
 
 kcp_server
 kcp_client
+kcp_bench

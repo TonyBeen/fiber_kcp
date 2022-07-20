@@ -37,11 +37,13 @@ all :
 $(TARGET) : $(OBJ_LIST)
 	$(CC) $^ -o $@ $(SO_LIB_LIST) -shared
 
-test : kcp_server kcp_client
+test : kcp_server kcp_client kcp_bench
 
 kcp_server : $(TEST_SRC_DIR)/test_kcp_server.cc $(SRC_LIST)
 	$(CC) $^ -o $@ $(SO_LIB_LIST)
 kcp_client : $(TEST_SRC_DIR)/test_kcp_client.cc $(SRC_LIST)
+	$(CC) $^ -o $@ $(SO_LIB_LIST)
+kcp_bench : $(TEST_SRC_DIR)/kcp_benchmark.cc $(SRC_LIST)
 	$(CC) $^ -o $@ $(SO_LIB_LIST)
 
 %.o : %.cpp
@@ -53,4 +55,4 @@ kcp_client : $(TEST_SRC_DIR)/test_kcp_client.cc $(SRC_LIST)
 .PHONY: all $(TARGET) clean
 
 clean :
-	rm -rf $(OBJ_LIST) kcp_server kcp_client
+	rm -rf $(OBJ_LIST) kcp_server kcp_client kcp_bench

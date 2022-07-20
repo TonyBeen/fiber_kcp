@@ -32,7 +32,7 @@ struct KcpAttr
 
     KcpAttr() :
         fd(-1), autoClose(0), conv(0),
-        sendWndSize(32), recvWndSize(32),
+        sendWndSize(1024), recvWndSize(1024),
         nodelay(0), interval(100), fastResend(0)
     {
         memset(&addr, 0, sizeof(addr));

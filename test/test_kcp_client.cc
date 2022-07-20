@@ -76,11 +76,11 @@ int main(int argc, char **argv)
         snprintf(buf, sizeof(buf), "Hello (times: %d)", ++times);
         kcp->send(ByteBuffer((uint8_t *)buf, strlen(buf)));
         printf("send -> %s\n", buf);
-        sleep(1);
         if (times == 0xff) {
             break;
         }
     }
 
+    while (1);
     return 0;
 }
