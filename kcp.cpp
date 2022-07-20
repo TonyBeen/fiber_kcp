@@ -51,11 +51,15 @@ bool Kcp::installRecvEvent(Callback onRecvEvent)
     return true;
 }
 
+/**
+ * @brief 发送数据。做缓存队列，如果直接调用ikcp_send时发的太快会使后面的数据丢失
+ * 
+ * @param buffer 
+ */
 void Kcp::send(const eular::ByteBuffer &buffer)
 {
-    // TODO: 做缓存队列，当update时从缓存队列拿出，一起发送
     eular::AutoLock<eular::Mutex> lock(mQueueMutex);
-    ikcp_send(mKcpHandle, (const char *)(buffer.const_data()), buffer.size());
+    mSendBufQueue.push_back(buffer);
 }
 
 bool Kcp::setAttr(const KcpAttr &attr)
@@ -81,7 +85,7 @@ bool Kcp::init()
 
     ikcp_setoutput(mKcpHandle, &Kcp::KcpOutput);
     ikcp_wndsize(mKcpHandle, mAttr.sendWndSize, mAttr.recvWndSize);
-    ikcp_nodelay(mKcpHandle, mAttr.nodelay, mAttr.interval, mAttr.fastResend, 0);
+    ikcp_nodelay(mKcpHandle, mAttr.nodelay, mAttr.interval, mAttr.fastResend, 1);
     return true;
 }
 
@@ -147,6 +151,15 @@ void Kcp::inputRoutine()
 
 void Kcp::outputRoutine()
 {
-    eular::AutoLock<eular::Mutex> lock(mQueueMutex);
+    {
+        eular::AutoLock<eular::Mutex> lock(mQueueMutex);
+        for (auto it : mSendBufQueue) {
+            int ret = ikcp_send(mKcpHandle, (const char *)(it.const_data()), it.size());
+            if (ret < 0) {
+                LOGE("ikcp_send error. %d", ret);
+            }
+        }
+        mSendBufQueue.clear();
+    }
     ikcp_update(mKcpHandle, Time::Abstime());
 }

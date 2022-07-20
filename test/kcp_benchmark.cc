@@ -103,10 +103,8 @@ int main(int argc, char **argv)
     attr.fd = udp;
     attr.autoClose = true;
     attr.conv = 0xffff;
-    attr.interval = 50;
+    attr.interval = 20;
     attr.addr = addr;
-    attr.sendWndSize = 512;
-    attr.recvWndSize = 512;
 
     Kcp::SP kcp(new Kcp(attr));
     kcp->installRecvEvent(std::bind(onReadEvent, kcp.get(), std::placeholders::_1, std::placeholders::_2));

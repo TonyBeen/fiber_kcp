@@ -61,7 +61,7 @@ int main(int argc, char **argv)
     attr.fd = fd;
     attr.autoClose = true;
     attr.conv = conv;
-    attr.interval = 50;
+    attr.interval = 20;
     attr.addr = addr;
 
     Kcp::SP kcp(new Kcp(attr));
@@ -76,6 +76,7 @@ int main(int argc, char **argv)
         snprintf(buf, sizeof(buf), "Hello (times: %d)", ++times);
         kcp->send(ByteBuffer((uint8_t *)buf, strlen(buf)));
         printf("send -> %s\n", buf);
+        // msleep(100);
         if (times == 0xff) {
             break;
         }
