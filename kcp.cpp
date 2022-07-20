@@ -109,6 +109,8 @@ void Kcp::inputRoutine()
     sockaddr_in peerAddr;
     socklen_t len = sizeof(sockaddr_in);
     bool hasError = false;
+
+    // TODO 对buffer进行协议解析
     while (true) {
         int nrecv = ::recvfrom(mAttr.fd, buf, sizeof(buf), 0, (sockaddr *)&peerAddr, &len);
         if (nrecv < 0) {
