@@ -50,19 +50,16 @@ int main(int argc, char **argv)
     addr.sin_addr.s_addr = inet_addr(SERVER_IP);
     addr.sin_port = htons(SERVER_PORT);
 
-    const char *hello = "CONNECT";
-    sendto(fd, hello, strlen(hello), 0, (sockaddr *)&addr, sizeof(addr));
-
-    uint16_t conv = 0;
-    recvfrom(fd, &conv, sizeof(conv), 0, nullptr, nullptr);
-    printf("conv = 0x%x\n", conv);
-
     KcpAttr attr;
     attr.fd = fd;
     attr.autoClose = true;
-    attr.conv = conv;
+    attr.conv = 0x1024;
     attr.interval = 20;
     attr.addr = addr;
+    attr.nodelay = 1;
+    attr.fastResend = 2;
+    attr.sendWndSize = 1024;
+    attr.recvWndSize = 1024;
 
     Kcp::SP kcp(new Kcp(attr));
     kcp->installRecvEvent(std::bind(onReadEvent, std::placeholders::_1, std::placeholders::_2));

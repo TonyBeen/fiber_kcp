@@ -77,29 +77,16 @@ int main(int argc, char **argv)
     sockaddr_in addr;
     socklen_t len = sizeof(addr);
 
-    do {
-        char buf[64] = {0};
-        int nrecv = ::recvfrom(udp, buf, sizeof(buf), 0, (sockaddr *)&addr, &len);
-        if (nrecv < 0) {
-            perror("recvfrom error: ");
-            return 0;
-        }
-
-        if (strcasecmp(buf, "CONNECT") == 0) {
-            printf("recv a client[%s:%d]\n", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
-            break;
-        }
-    } while (true);
-
-    uint16_t conv = 0xffff;
-    sendto(udp, &conv, sizeof(conv), 0, (sockaddr *)&addr, len);
-
     KcpAttr attr;
     attr.fd = udp;
     attr.autoClose = true;
-    attr.conv = conv;
-    attr.interval = 50;
+    attr.conv = 0x1024;
+    attr.interval = 20;
     attr.addr = addr;
+    attr.nodelay = 1;
+    attr.fastResend = 2;
+    attr.sendWndSize = 1024;
+    attr.recvWndSize = 1024;
 
     Kcp::SP kcp(new Kcp(attr));
     kcp->installRecvEvent(std::bind(onReadEvent, kcp.get(), std::placeholders::_1, std::placeholders::_2));
