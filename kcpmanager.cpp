@@ -199,6 +199,7 @@ void KcpManager::idle()
         do {
             nev = epoll_wait(mEpollFd, events, maxEvents, timeoutms);
             if (nev < 0 && errno == EINTR) {
+                KFiber::Yeild2Hold();
             } else {
                 break;
             }
