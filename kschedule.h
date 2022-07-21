@@ -41,7 +41,7 @@ public:
             AutoLock<Mutex> lock(mQueueMutex);
             needTickle = scheduleNoLock(fc, th);
         }
-        if (needTickle) {
+        if (needTickle && mThreadCount > 0) {
             tickle();
         }
     }
@@ -57,7 +57,7 @@ public:
                 ++begin;
             }
         }
-        if (needTickle) {
+        if (needTickle && mThreadCount > 0) {
             tickle();
         }
     }

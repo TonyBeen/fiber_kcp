@@ -118,10 +118,7 @@ void KcpManager::idle()
                         if (mEventCount >= epoll_event_size) {   // 不能超出事件大小
                             break;
                         }
-                        if (it->first->create() == false) {
-                            LOGE("create error");
-                            break;
-                        }
+                        it->first->create();
 
                         int fd = it->first->mAttr.fd;
                         int flag = fcntl(fd, F_GETFL);
