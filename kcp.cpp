@@ -151,15 +151,18 @@ void Kcp::inputRoutine()
 
 void Kcp::outputRoutine()
 {
+    std::list<eular::ByteBuffer> queue;
     {
         eular::AutoLock<eular::Mutex> lock(mQueueMutex);
-        for (auto it : mSendBufQueue) {
-            int ret = ikcp_send(mKcpHandle, (const char *)(it.const_data()), it.size());
-            if (ret < 0) {
-                LOGE("ikcp_send error. %d", ret);
-            }
-        }
-        mSendBufQueue.clear();
+        queue = std::move(mSendBufQueue);
     }
+
+    for (auto it : queue) {
+        int ret = ikcp_send(mKcpHandle, (const char *)(it.const_data()), it.size());
+        if (ret < 0) {
+            LOGE("ikcp_send error. %d", ret);
+        }
+    }
+
     ikcp_update(mKcpHandle, Time::Abstime());
 }

@@ -97,7 +97,7 @@ int main(int argc, char **argv)
     KcpAttr attr;
     attr.fd = udp;
     attr.autoClose = true;
-    attr.conv = 0xffff;
+    attr.conv = conv;
     attr.interval = 50;
     attr.addr = addr;
 

@@ -76,7 +76,7 @@ int main(int argc, char **argv)
         snprintf(buf, sizeof(buf), "Hello (times: %d)", ++times);
         kcp->send(ByteBuffer((uint8_t *)buf, strlen(buf)));
         printf("send -> %s\n", buf);
-        // msleep(100);
+        msleep(20);
         if (times == 0xff) {
             break;
         }
