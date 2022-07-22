@@ -85,7 +85,7 @@ bool Kcp::init()
 
     ikcp_setoutput(mKcpHandle, &Kcp::KcpOutput);
     ikcp_wndsize(mKcpHandle, mAttr.sendWndSize, mAttr.recvWndSize);
-    ikcp_nodelay(mKcpHandle, mAttr.nodelay, mAttr.interval, mAttr.fastResend, 1);
+    ikcp_nodelay(mKcpHandle, mAttr.nodelay, mAttr.interval, mAttr.fastResend, mAttr.nc);
     return true;
 }
 
@@ -127,6 +127,7 @@ void Kcp::inputRoutine()
     }
 
     LOGD("recvfrom [%s:%d] size %zu", inet_ntoa(peerAddr.sin_addr), ntohs(peerAddr.sin_port), buffer.size());
+    mAttr.addr = peerAddr;
 
     if (!hasError) {
         int ret = ikcp_input(mKcpHandle, (char *)buffer.data(), buffer.size());

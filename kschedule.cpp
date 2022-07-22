@@ -224,14 +224,14 @@ void KScheduler::threadloop()
 void KScheduler::idle()
 {
     while (!stopping()) {
-        LOGI("%s() fiber id: %lu", __func__, KFiber::GetFiberID());
+        // LOGI("%s() fiber id: %lu", __func__, KFiber::GetFiberID());
         KFiber::Yeild2Hold();
     }
 }
 
 void KScheduler::tickle()
 {
-    LOGD("KScheduler::tickle()");
+    // LOGD("KScheduler::tickle()");
 }
 
 bool KScheduler::stopping()

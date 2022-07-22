@@ -29,11 +29,14 @@ struct KcpAttr
     uint8_t  nodelay;       // 0:disable(default), 1:enable
     int32_t  interval;      // internal update timer interval in millisec, default is 100ms
     uint8_t  fastResend;    // 0:disable fast resend(default), >0:enable fast resend
+    uint8_t  nc;
+    uint32_t updateTime;
 
     KcpAttr() :
         fd(-1), autoClose(0), conv(0),
         sendWndSize(512), recvWndSize(512),
-        nodelay(1), interval(100), fastResend(2)
+        nodelay(1), interval(50), fastResend(2),
+        nc(1), updateTime(100)
     {
         memset(&addr, 0, sizeof(addr));
     }

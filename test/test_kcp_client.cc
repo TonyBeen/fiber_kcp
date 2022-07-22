@@ -64,8 +64,9 @@ int main(int argc, char **argv)
     Kcp::SP kcp(new Kcp(attr));
     kcp->installRecvEvent(std::bind(onReadEvent, std::placeholders::_1, std::placeholders::_2));
 
-    KcpManager *manager = KcpManagerInstance::get(1, false, "test_kcp_client");
+    KcpManager *manager = KcpManagerInstance::get(1, "test_kcp_client");
     manager->addKcp(kcp);
+    manager->start();
 
     char buf[128] = {0};
     uint16_t times = 0;
@@ -73,7 +74,7 @@ int main(int argc, char **argv)
         snprintf(buf, sizeof(buf), "Hello (times: %d)", ++times);
         kcp->send(ByteBuffer((uint8_t *)buf, strlen(buf)));
         printf("send -> %s\n", buf);
-        msleep(20);
+        //msleep(20);
         if (times == 0xff) {
             break;
         }

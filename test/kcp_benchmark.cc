@@ -75,7 +75,7 @@ int main(int argc, char **argv)
     signal(SIGSEGV, signalCatch);
     signal(SIGABRT, signalCatch);
 
-    KcpManager *manager = KcpManagerInstance::get(1, true, "test_kcp_server");
+    KcpManager *manager = KcpManagerInstance::get(1, "test_kcp_server");
 
     int udp = createSocket();
     assert(udp > 0);
@@ -98,7 +98,7 @@ int main(int argc, char **argv)
 
     manager->addKcp(kcp);
     manager->addTimer(timeout, std::bind(onTimerEvent, kcp.get()), timeout);
-    KcpManager::GetMainFiber()->resume();
+    manager->start(true);
 
     return 0;
 }

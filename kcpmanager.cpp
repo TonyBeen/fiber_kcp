@@ -88,6 +88,7 @@ bool KcpManager::addKcp(Kcp::SP kcp)
             tid = it->first;
         }
     }
+    LOGD("will bind tid %u", tid);
     int fd = kcp->mAttr.fd;
 
     Context *ctx = nullptr;
@@ -112,8 +113,8 @@ bool KcpManager::addKcp(Kcp::SP kcp)
     ctx->read = std::bind(&Kcp::inputRoutine, kcp.get());
     ctx->scheduler = mScheduler.get();
     ctx->tid = tid;
-    ctx->timerId = addTimer(kcp->mAttr.interval * 1.5,
-        std::bind(&Kcp::outputRoutine, kcp.get()), kcp->mAttr.interval * 1.5, tid)->getUniqueId();
+    ctx->timerId = addTimer(kcp->mAttr.updateTime,
+        std::bind(&Kcp::outputRoutine, kcp.get()), kcp->mAttr.updateTime, tid)->getUniqueId();
     ev.data.ptr = ctx;
     ev.events = EPOLLET | EPOLLIN;
     int rt = epoll_ctl(mEpollFd, EPOLL_CTL_ADD, fd, &ev);
