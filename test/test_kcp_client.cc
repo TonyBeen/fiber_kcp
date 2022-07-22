@@ -58,8 +58,8 @@ int main(int argc, char **argv)
     attr.addr = addr;
     attr.nodelay = 1;
     attr.fastResend = 2;
-    attr.sendWndSize = 1024;
-    attr.recvWndSize = 1024;
+    attr.sendWndSize = 10240;
+    attr.recvWndSize = 10240;
 
     Kcp::SP kcp(new Kcp(attr));
     kcp->installRecvEvent(std::bind(onReadEvent, std::placeholders::_1, std::placeholders::_2));
@@ -73,8 +73,8 @@ int main(int argc, char **argv)
         snprintf(buf, sizeof(buf), "Hello (times: %d)", ++times);
         kcp->send(ByteBuffer((uint8_t *)buf, strlen(buf)));
         printf("send -> %s\n", buf);
-        msleep(20);
-        if (times == 0xff) {
+        msleep(20); // 发送太快会使发送窗口缓存太多而不能把数据发出去
+        if (times == 4096) {
             break;
         }
     }

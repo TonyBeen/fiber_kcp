@@ -85,8 +85,8 @@ int main(int argc, char **argv)
     attr.addr = addr;
     attr.nodelay = 1;
     attr.fastResend = 2;
-    attr.sendWndSize = 1024;
-    attr.recvWndSize = 1024;
+    attr.sendWndSize = 10240;
+    attr.recvWndSize = 10240;
 
     Kcp::SP kcp(new Kcp(attr));
     kcp->installRecvEvent(std::bind(onReadEvent, kcp.get(), std::placeholders::_1, std::placeholders::_2));
