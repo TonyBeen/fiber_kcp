@@ -128,6 +128,7 @@ void Kcp::inputRoutine()
     }
 
     LOGD("recvfrom [%s:%d] size %zu", inet_ntoa(peerAddr.sin_addr), ntohs(peerAddr.sin_port), buffer.size());
+    mAttr.addr = peerAddr;
 
     if (!hasError) {
         int ret = ikcp_input(mKcpHandle, (char *)buffer.data(), buffer.size());
