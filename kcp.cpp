@@ -89,10 +89,9 @@ bool Kcp::init()
     return true;
 }
 
-bool Kcp::create()
+void Kcp::bind(uint32_t tid)
 {
-    mBindTid = gettid();
-    return true;
+    mBindTid = tid;
 }
 
 int Kcp::KcpOutput(const char *buf, int len, ikcpcb *kcp, void *user)

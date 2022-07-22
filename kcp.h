@@ -57,7 +57,7 @@ public:
 
 private:
     bool init();
-    bool create();
+    void bind(uint32_t tid);
     static int KcpOutput(const char *buf, int len, ikcpcb *kcp, void *user);
     void inputRoutine();
     void outputRoutine();

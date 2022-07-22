@@ -159,6 +159,9 @@ void KTimerManager::delTimer(uint64_t timerId)
     for (auto it = mTimers.begin(); it != mTimers.end();) {
         if ((*it)->mUniqueId == timerId) {
             mTimers.erase(it);
+            if (it == mTimers.begin()) {
+                onTimerInsertedAtFront();
+            }
             break;
         }
         ++it;

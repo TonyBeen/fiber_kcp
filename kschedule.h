@@ -31,6 +31,7 @@ public:
     static KScheduler* GetThis();
     static KFiber* GetMainFiber();
     const eular::String8 &getName() const { return mName; }
+    const std::vector<int> &gettids() const { return mThreadIds; }
     bool hasIdleThread() const { return mIdleThreadCount.load() > 0; }
 
     template<class FiberOrCb>
