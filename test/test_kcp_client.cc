@@ -74,7 +74,7 @@ int main(int argc, char **argv)
         kcp->send(ByteBuffer(buf, strlen(buf)));
         printf("send -> %s\n", buf);
         msleep(20); // 发送太快会使发送窗口缓存太多而不能把数据发出去
-        if (times == 4096) {
+        if (times == 1024) {
             break;
         }
     }

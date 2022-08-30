@@ -51,13 +51,13 @@ static const uint16_t timeout = 500;
 
 void onReadEvent(Kcp *kcp, ByteBuffer &buffer, sockaddr_in addr)
 {
-    LOGI("%s() [%s](%zu) [%s:%d]", __func__, (char *)buffer.data(), buffer.size(), inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+    LOGD("%s() [%s](%zu) [%s:%d]", __func__, (char *)buffer.data(), buffer.size(), inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
     gRecvSize += buffer.size();
 }
 
 void onTimerEvent(Kcp *kcp)
 {
-    LOGD("onTimerEvent() %d b/s", gRecvSize * timeout / 1000);
+    LOGI("onTimerEvent() %d b/s", gRecvSize * 2);
     gRecvSize = 0;
 }
 
@@ -74,6 +74,8 @@ int main(int argc, char **argv)
 {
     signal(SIGSEGV, signalCatch);
     signal(SIGABRT, signalCatch);
+
+    InitLog(LogLevel::INFO);
 
     KcpManager *manager = KcpManagerInstance::get(1, true, "test_kcp_server");
 
