@@ -9,7 +9,7 @@
 #define __KCP_H__
 
 #include <utils/mutex.h>
-#include <utils/Buffer.h>
+#include <utils/buffer.h>
 #include <libco/co_routine.h>
 #include <arpa/inet.h>
 #include <stdint.h>
