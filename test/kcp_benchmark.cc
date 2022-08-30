@@ -13,7 +13,7 @@
 #include <log/callstack.h>
 
 using namespace std;
-#define SERVER_IP   "10.0.24.17"
+#define SERVER_IP   "127.0.0.1"
 #define SERVER_PORT 12000
 #define LOG_TAG     "kcp-bench-mark"
 
