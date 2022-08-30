@@ -71,7 +71,7 @@ int main(int argc, char **argv)
     uint16_t times = 0;
     while (true) {
         snprintf(buf, sizeof(buf), "Hello (times: %d)", ++times);
-        kcp->send(ByteBuffer((uint8_t *)buf, strlen(buf)));
+        kcp->send(ByteBuffer(buf, strlen(buf)));
         printf("send -> %s\n", buf);
         msleep(20); // 发送太快会使发送窗口缓存太多而不能把数据发出去
         if (times == 4096) {
