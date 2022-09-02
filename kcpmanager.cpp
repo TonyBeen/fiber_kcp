@@ -111,7 +111,7 @@ void KcpManager::idle()
             AutoLock<Mutex> lock(mQueueMutex);
             // 负载均衡, 将kcp绑定线程, 否则可能会导致大部分kcp跑在某一个线程，而其他线程没啥任务
             if (localEventCount < maxEvents) {
-                for (auto it = mWaitingQueue.begin(); it != mWaitingQueue.end(); ++it) {
+                for (auto it = mWaitingQueue.begin(); it != mWaitingQueue.end(); ) {
                     switch (it->second) {
                     case KcpState::NOTINIT:
                     {
@@ -159,7 +159,8 @@ void KcpManager::idle()
                             ++mEventCount;
                             ++localEventCount;
                         }
-                        break;
+                        it = mWaitingQueue.erase(it);
+                        continue;
                     }
                     case KcpState::INITED:
                     {
@@ -167,24 +168,28 @@ void KcpManager::idle()
                     }
                     case KcpState::REMOVE:
                     {
-                        epoll_ctl(mEpollFd, EPOLL_CTL_DEL, it->first->mAttr.fd, nullptr);
-                        {
-                            AutoLock<Mutex> lock(mCtxMutex);
-                            mContextVec[it->first->mAttr.fd]->resetContext(READ);
-                        }
-                        delTimer(mContextVec[it->first->mAttr.fd]->timerId);
-                        --mEventCount;
                         if (it->first->mBindTid == gettid()) {
+                            uint64_t timerId = 0;
+                            epoll_ctl(mEpollFd, EPOLL_CTL_DEL, it->first->mAttr.fd, nullptr);
+                            {
+                                AutoLock<Mutex> lock(mCtxMutex);
+                                timerId = mContextVec[it->first->mAttr.fd]->timerId;
+                                mContextVec[it->first->mAttr.fd]->resetContext(READ);
+                            }
+                            delTimer(timerId);
+                            --mEventCount;
                             --localEventCount;
                         }
-                        break;
+                        it = mWaitingQueue.erase(it);
+                        continue;
                     }
                     default:
                         LOG_ASSERT(false, "invalid kcp state");
                         break;
                     }
+
+                    ++it;
                 }
-                mWaitingQueue.clear();
             }
         }
 

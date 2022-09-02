@@ -99,7 +99,7 @@ int Kcp::KcpOutput(const char *buf, int len, ikcpcb *kcp, void *user)
 {
     Kcp *__kcp = static_cast<Kcp *>(user);
     if (buf && len > 0) {
-        LOGD("kcp callback. sendto [%s:%d]", inet_ntoa(__kcp->mAttr.addr.sin_addr), ntohs(__kcp->mAttr.addr.sin_port));
+        LOGD("kcp callback. sendto [%s:%d] len %d", inet_ntoa(__kcp->mAttr.addr.sin_addr), ntohs(__kcp->mAttr.addr.sin_port), len);
         return ::sendto(__kcp->mAttr.fd, buf, len, 0, (sockaddr *)&__kcp->mAttr.addr, sizeof(sockaddr_in));
     }
 
@@ -143,6 +143,7 @@ void Kcp::inputRoutine()
         buffer.resize(ret + 1);
         buffer.clear();
         int nrecv = ikcp_recv(mKcpHandle, (char *)buffer.data(), ret);
+        LOGD("ikcp_recv size %d", nrecv);
         if (nrecv > 0) {
             buffer.setDataSize(ret);
             mRecvEvent(buffer, peerAddr);
