@@ -12,6 +12,15 @@ SO_LIB_LIST = -lutils -llog -lpthread -ldl
 SRC_DIR = .
 TEST_SRC_DIR = ./test
 
+HEADER_FILE_LIST = 				\
+	$(SRC_DIR)/ikcp.h			\
+	$(SRC_DIR)/kcp.h			\
+	$(SRC_DIR)/kcpmanager.h		\
+	$(SRC_DIR)/kfiber.h			\
+	$(SRC_DIR)/kschedule.h     	\
+	$(SRC_DIR)/kthread.h		\
+	$(SRC_DIR)/ktimer.h			\
+
 SRC_LIST = 						\
 	$(SRC_DIR)/ikcp.c			\
 	$(SRC_DIR)/kcp.cpp			\
@@ -34,6 +43,19 @@ all :
 	make $(TARGET)
 	make test
 
+install:
+	make $(TARGET)
+	-sudo mv $(TARGET) /usr/local/lib/
+	-sudo ldconfig
+	-if [ ! -d "/usr/local/include/kcp/" ]; then sudo mkdir /usr/local/include/kcp/; fi
+	-sudo cp $(HEADER_FILE_LIST) /usr/local/include/kcp/
+	-make clean
+
+uninstall:
+	-sudo rm /usr/local/lib/$(TARGET)
+	-sudo ldconfig
+	-sudo rm -r /usr/local/include/kcp
+
 $(TARGET) : $(OBJ_LIST)
 	$(CC) $^ -o $@ $(SO_LIB_LIST) -shared
 
@@ -52,7 +74,7 @@ kcp_bench : $(TEST_SRC_DIR)/kcp_benchmark.cc $(SRC_LIST)
 %.o : %.c
 	$(CC) -c $^ -o $@ $(INCLUDE_PATH) $(CPPFLAGS) $(SOFLAGS)
 
-.PHONY: all $(TARGET) clean
+.PHONY: all $(TARGET) install uninstall clean
 
 clean :
 	rm -rf $(OBJ_LIST) kcp_server kcp_client kcp_bench
