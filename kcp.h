@@ -22,7 +22,7 @@ struct KcpAttr
 {
     int32_t  fd;            // socket
     uint8_t  autoClose;     // whether to close automatically
-    sockaddr_in addr;       // 
+    sockaddr_in addr;       // remote address
     uint32_t conv;          // conversation number
     uint16_t sendWndSize;   // send window size
     uint16_t recvWndSize;   // receive windows size
