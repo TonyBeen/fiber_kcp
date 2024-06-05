@@ -64,7 +64,7 @@ int main(int argc, char **argv)
     Kcp::SP kcp(new Kcp(attr));
     kcp->installRecvEvent(std::bind(onReadEvent, std::placeholders::_1, std::placeholders::_2));
 
-    KcpManager *manager = KcpManagerInstance::get(1, false, "test_kcp_client");
+    KcpManager *manager = KcpManagerInstance::Get(1, false, "test_kcp_client");
     manager->addKcp(kcp);
 
     char buf[128] = {0};

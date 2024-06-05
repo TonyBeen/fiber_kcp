@@ -65,7 +65,7 @@ void signalCatch(int sig)
 {
     CallStack stack;
     stack.update();
-    stack.log(LOG_TAG, eular::LogLevel::FATAL);
+    stack.log(LOG_TAG, eular::LogLevel::LEVEL_FATAL);
 
     exit(0);
 }
@@ -75,9 +75,9 @@ int main(int argc, char **argv)
     signal(SIGSEGV, signalCatch);
     signal(SIGABRT, signalCatch);
 
-    InitLog(LogLevel::INFO);
+    eular::log::InitLog(LogLevel::LEVEL_INFO);
 
-    KcpManager *manager = KcpManagerInstance::get(1, true, "test_kcp_server");
+    KcpManager *manager = KcpManagerInstance::Get(1, true, "test_kcp_server");
 
     int udp = createSocket();
     assert(udp > 0);

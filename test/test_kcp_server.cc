@@ -69,7 +69,7 @@ int main(int argc, char **argv)
     signal(SIGSEGV, signalCatch);
     signal(SIGABRT, signalCatch);
 
-    KcpManager *manager = KcpManagerInstance::get(1, true, "test_kcp_server");
+    KcpManager *manager = KcpManagerInstance::Get(1, true, "test_kcp_server");
 
     int udp = createSocket();
     assert(udp > 0);
