@@ -30,7 +30,7 @@ void signalCatch(int sig)
     if (sig == SIGSEGV) {
         CallStack stack;
         stack.update();
-        stack.log(LOG_TAG, eular::LogLevel::FATAL);
+        stack.log(LOG_TAG, eular::LogLevel::LEVEL_FATAL);
     }
     exit(0);
 }

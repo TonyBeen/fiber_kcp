@@ -16,7 +16,6 @@
 
 using namespace std;
 
-#define SERVER_IP   "127.0.0.1"
 #define SERVER_PORT 12000
 
 int createSocket()
@@ -25,7 +24,7 @@ int createSocket()
     sockaddr_in addr;
     socklen_t len = sizeof(sockaddr_in);
 
-    server_fd = socket(AF_INET, SOCK_DGRAM, 0); // AF_INET:IPV4;SOCK_DGRAM:UDP
+    server_fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (server_fd < 0) {
         perror("create socket fail!");
         return -1;
@@ -33,17 +32,17 @@ int createSocket()
 
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = inet_addr(SERVER_IP); // IP地址，需要进行网络序转换，INADDR_ANY：本地地址
-    addr.sin_port = htons(SERVER_PORT);  // 端口号，需要网络序转换
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    addr.sin_port = htons(SERVER_PORT);
 
     ret = bind(server_fd, (struct sockaddr*)&addr, len);
-    if(ret < 0) {
+    if (ret < 0) {
         perror("socket bind fail!");
         return -1;
     }
 
     int reuse = true;
-    assert(0 == setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)));
+    LOG_ASSERT2(0 == setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)));
 
     return server_fd;
 }
@@ -60,7 +59,7 @@ void signalCatch(int sig)
 {
     CallStack stack;
     stack.update();
-    stack.log(LOG_TAG, eular::LogLevel::FATAL);
+    stack.log(LOG_TAG, eular::LogLevel::LEVEL_FATAL);
 
     exit(0);
 }
