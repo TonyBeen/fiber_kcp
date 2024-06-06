@@ -21,8 +21,8 @@ https://github.com/skywind3000/kcp
 
 
 #### TODO
-1、当前设计只支持一个socket对应一个kcp, 如此太过浪费资源, 将其修改为one socket one loop
-    one loop拥有最多255个业务kcp会话, 0x4B435000作为初始化会话Id, 用于建立连接(kcp不同于utp, 其不支持连接操作)
+1、当前设计只支持一个socket对应一个kcp, 如此太过浪费资源, 将其修改为一个循环拥有多个KCP(此处KCP可理解为一个UDP服务器)
+    一个KCP拥有最多255个业务kcp会话, 0x4B435000作为初始化会话Id, 用于建立连接(kcp不同于utp, 其不支持连接操作)
     会话ID范围 0x4B435000 - 0x4B4350FF (KCP0 - KCP255)
 
 2、考虑到公网环境下udp可接收任何pc的数据, 当存在恶意发送udp数据时会导致kcp数据异常, 使得kcp重发几率增高
@@ -33,3 +33,5 @@ https://github.com/skywind3000/kcp
         -> 当找到时, 此时读取完整的KCP头部, 解析头部, 获取数据长度并将数据读出
         -> 调用ikcp_input更新数据
     4、找不到时, 回退2个字节, 将之前数据清空, 在此读取24字节, 循环往复
+
+3、
