@@ -8,21 +8,21 @@
 #ifndef __KCP_MANAGER_H__
 #define __KCP_MANAGER_H__
 
-#include "kcp.h"
-#include "ktimer.h"
-#include "kschedule.h"
-#include <utils/singleton.h>
-#include <thread>
 #include <atomic>
 #include <map>
 #include <vector>
 
-using namespace eular;
+#include "kcp.h"
+#include "ktimer.h"
+#include "kschedule.h"
 
-class KcpManager : public KTimerManager
+namespace eular {
+
+
+class KcpManager : public KTimerManager, public KScheduler
 {
 public:
-    KcpManager(uint8_t threads, const String8 &name);
+    KcpManager(const String8 &name, bool userCaller);
     virtual ~KcpManager();
 
     enum Event {
@@ -34,8 +34,10 @@ public:
     bool addKcp(Kcp::SP kcp);
     bool delKcp(Kcp::SP kcp);
 
-    bool start(bool userCaller = false);
-    bool stop();
+    virtual void start() override;
+    virtual void stop() override;
+
+    static KcpManager *GetCurrentKcpManager();
 
 private:
     void threadloop();
@@ -48,6 +50,7 @@ private:
     };
 
     struct Context {
+        using SP = std::shared_ptr<Context>;
         void resetContext(uint32_t event);
         void triggerEvent(Event event);
 
@@ -55,26 +58,21 @@ private:
         std::function<void()> read = nullptr;
         std::function<void()> write = nullptr;
         uint64_t timerId = 0;
-        uint32_t tid = 0;
-        int fd = 0;
+        int32_t socketFd = 0;
         uint32_t events = NONE;
         Mutex mutex;
     };
 
-    void contextResize(uint32_t size);
-
 private:
-    std::map<int, std::atomic<uint32_t>> mKcpPeerThread;
-    eular::Mutex mCtxMutex;
-    std::vector<Context *>  mContextVec;
-    std::atomic<uint16_t>   mEventCount;
-    std::atomic<bool>       mKeepRun;
-    KScheduler::SP          mScheduler;
-    Thread::SP  mThread;
-    int         mEpollFd;
-    int         mEventFd;
+    using ContxtMap = std::map<int32_t, Context::SP>;
+    eular::Mutex            m_ctxMutex;
+    ContxtMap               m_contextMap;
+    std::atomic<uint16_t>   m_kcpCtxCount;
+    std::atomic<bool>       m_keepRun;
+    Thread::SP              m_thread;
+    int32_t                 m_epollFd;
+    int32_t                 m_eventFd;
 };
 
-typedef eular::Singleton<KcpManager> KcpManagerInstance;
-
+} // namespace eular
 #endif  // __KCP_MANAGER_H__

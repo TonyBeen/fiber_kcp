@@ -6,15 +6,18 @@
  ************************************************************************/
 
 #include "kfiber.h"
-#include <log/log.h>
+
 #include <atomic>
 #include <exception>
+
+#include <log/log.h>
 
 #define LOG_TAG "KFiber"
 
 static std::atomic<uint64_t> gFiberId(0);       // 协程ID
 static std::atomic<uint64_t> gFiberCount(0);    // 当前协程总数
 
+namespace eular {
 static thread_local KFiber *gCurrentFiber = nullptr;         // 当前正在执行的协程
 static thread_local KFiber::SP gThreadMainFiber = nullptr;   // 一个线程的主协程
 
@@ -221,3 +224,5 @@ void KFiber::FiberEntry()
 
     LOG_ASSERT(false, "never reach here");
 }
+
+} // namespace eular

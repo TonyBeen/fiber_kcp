@@ -282,6 +282,7 @@ struct IKCPSEG
 	char data[1];
 };
 
+#define KCP_HEADER_SIZE 	24
 
 //---------------------------------------------------------------------
 // IKCPCB

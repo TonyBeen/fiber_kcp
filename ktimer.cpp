@@ -15,90 +15,39 @@
 
 std::atomic<uint64_t>   gUniqueIdCount{0};
 
+int32_t TimerCompare(const heap_node_t *lhs, const heap_node_t *rhs)
+{
+    heap_timer_t *pTimerLeft = HEAP_NODE_TO_TIMER(lhs);
+    heap_timer_t *pTimerRight = HEAP_NODE_TO_TIMER(rhs);
+
+    return pTimerLeft->next_timeout < pTimerRight->next_timeout;
+}
+
 KTimer::KTimer() :
-    mTime(0),
-    mRecycleTime(0),
-    mCb(nullptr)
+    m_timerCallback(nullptr)
 {
-    mUniqueId = ++gUniqueIdCount;
+    m_timerCtx.unique_id = ++gUniqueIdCount;
+    m_timerCtx.user_data = this;
 }
 
-KTimer::KTimer(uint64_t ms, CallBack cb, uint32_t recycle, uint32_t tid) :
-    mTid(tid),
-    mCb(cb),
-    mRecycleTime(recycle)
+KTimer::KTimer(uint64_t ms, CallBack cb, uint32_t recycle) :
+    m_timerCallback(cb)
 {
-    mTime = CurrentTime() + ms;
-    mUniqueId = ++gUniqueIdCount;
-}
-
-KTimer::KTimer(const KTimer& other) :
-    mTime(other.mTime),
-    mCb(other.mCb),
-    mRecycleTime(other.mRecycleTime),
-    mUniqueId(other.mUniqueId)
-{
+    m_timerCtx.next_timeout = CurrentTime() + ms;
+    m_timerCtx.unique_id = ++gUniqueIdCount;
+    m_timerCtx.user_data = this;
 }
 
 KTimer::~KTimer()
 {
-
-}
-
-KTimer &KTimer::operator=(const KTimer& timer)
-{
-    assert(this != &timer);
-    mTime = timer.mTime;
-    mCb = timer.mCb;
-    mRecycleTime = timer.mRecycleTime;
-    mUniqueId = timer.mUniqueId;
-
-    return *this;
-}
-
-void KTimer::cancel()
-{
-    AutoLock<Mutex> lock(mMutex);
-    mTime = 0;
-    mCb = nullptr;
-    mRecycleTime = 0;
-}
-
-void KTimer::setCallback(CallBack cb)
-{
-    AutoLock<Mutex> lock(mMutex);
-    mCb = cb;
-}
-
-KTimer::CallBack KTimer::getCallback()
-{
-    AutoLock<Mutex> lock(mMutex);
-    return mCb;
+    m_timerCtx.user_data = nullptr;
 }
 
 void KTimer::update()
 {
-    if (mRecycleTime) {
-        mTime += mRecycleTime;
+    if (m_timerCtx.recycle_time) {
+        m_timerCtx.next_timeout += m_timerCtx.recycle_time;
     }
-}
-
-void KTimer::reset(uint64_t ms, KTimer::CallBack cb, uint32_t recycle, uint32_t tid)
-{
-    if (ms < mTime || cb == nullptr) {
-        return;
-    }
-
-    mTime = CurrentTime() + ms;
-    mCb = cb;
-    mRecycleTime = recycle;
-    mTid = tid;
-    onReset();
-}
-
-void KTimer::onReset()
-{
-
 }
 
 uint64_t KTimer::CurrentTime()
@@ -109,34 +58,37 @@ uint64_t KTimer::CurrentTime()
     return mills.count();
 }
 
-
 KTimerManager::KTimerManager()
 {
+    heap_init(&m_timerHeap, TimerCompare);
 }
 
 KTimerManager::~KTimerManager()
 {
+    heap_init(&m_timerHeap, TimerCompare);
+    m_timerSet.clear();
 }
 
 uint64_t KTimerManager::getNearTimeout()
 {
-    RDAutoLock<RWMutex> rlock(mTimerRWMutex);
-    mTickle = false;
-    if (mTimers.empty()) {
+    uint64_t nowMs = KTimer::CurrentTime();
+
+    eular::RDAutoLock<eular::RWMutex> readLock(m_timerRWMutex);
+    if (m_timerHeap.root == nullptr) {
         return UINT64_MAX;
     }
 
-    const KTimer::SP &timer = *mTimers.begin();
-    uint64_t nowMs = KTimer::CurrentTime();
-    if (nowMs >= timer->getTimeout()) {
+    heap_timer_t *pTimer = HEAP_NODE_TO_TIMER(m_timerHeap.root);
+    if (nowMs >= pTimer->next_timeout) {
         return 0;
     }
-    return timer->getTimeout() - nowMs;
+
+    return pTimer->next_timeout - nowMs;
 }
 
-KTimer::SP KTimerManager::addTimer(uint64_t ms, KTimer::CallBack cb, uint32_t recycle, uint32_t tid)
+KTimer::SP KTimerManager::addTimer(uint64_t ms, KTimer::CallBack cb, uint32_t recycle)
 {
-    KTimer::SP timer(new (std::nothrow)KTimer(ms, cb, recycle, tid));
+    KTimer::SP timer = std::make_shared<KTimer>(ms, cb, recycle);
     return addTimer(timer);
 }
 
@@ -155,45 +107,49 @@ KTimer::SP KTimerManager::addConditionTimer(uint64_t ms, KTimer::CallBack cb, st
 
 void KTimerManager::delTimer(uint64_t timerId)
 {
-    WRAutoLock<RWMutex> wrLock(mTimerRWMutex);
-    for (auto it = mTimers.begin(); it != mTimers.end();) {
-        if ((*it)->mUniqueId == timerId) {
-            mTimers.erase(it);
-            if (it == mTimers.begin()) {
-                onTimerInsertedAtFront();
+    bool isRootNode = false;
+    {
+        eular::WRAutoLock<eular::RWMutex> writeLock(m_timerRWMutex);
+        for (auto it = m_timerSet.begin(); it != m_timerSet.end(); ++it) {
+            if ((*it)->getUniqueId() == timerId) {
+                // heap_remove()
+                heap_node_t *pNode = &(*it)->m_timerCtx.node;
+                if (pNode == m_timerHeap.root) {
+                    isRootNode = true;
+                }
+                heap_remove(&m_timerHeap, pNode);
+                m_timerSet.erase(it);
+                break;
             }
-            break;
         }
-        ++it;
+    }
+
+    if (isRootNode) {
+        onTimerInsertedAtFront();
     }
 }
 
-void KTimerManager::listExpiredTimer(std::list<std::pair<std::function<void()>, uint32_t>> &cbs)
+void KTimerManager::listExpiredTimer(std::list<KTimer::CallBack> &cbList)
 {
     uint64_t nowMS = KTimer::CurrentTime();
-    std::list<KTimer::SP> expired;
-    {
-        RDAutoLock<RWMutex> rdlock(mTimerRWMutex);
-        if (mTimers.empty()) {
-            return;
+    eular::RDAutoLock<eular::RWMutex> readLcok(m_timerRWMutex);
+
+    heap_timer_t *pTimer = nullptr;
+    while (m_timerHeap.root != nullptr) {
+        pTimer = HEAP_NODE_TO_TIMER(m_timerHeap.root);
+        if (pTimer->next_timeout > nowMS) {
+            break;
         }
-    }
 
-    WRAutoLock<RWMutex> wrlock(mTimerRWMutex);
-    auto it = mTimers.begin();
-    while (it != mTimers.end() && (*it)->mTime <= nowMS) {
-        ++it;
-    }
-    expired.insert(expired.begin(), mTimers.begin(), it);
-    mTimers.erase(mTimers.begin(), it);
-
-    for (auto &timer : expired) {
-        if (timer->mCb != nullptr) {    // 排除用户取消的定时器
-            cbs.push_back(std::make_pair(timer->getCallback(), timer->mTid));
-            if (timer->mRecycleTime) {
-                timer->update();
-                mTimers.insert(timer);
-            }
+        heap_dequeue(&m_timerHeap);
+        KTimer *pKTimer = static_cast<KTimer *>(pTimer->user_data);
+        cbList.push_back(pKTimer->m_timerCallback);
+        if (pTimer->recycle_time > 0) {
+            pKTimer->update();
+            heap_insert(&m_timerHeap, pKTimer->getHeapNode());
+        } else {
+            // 从集合中移除
+            m_timerSet.erase(pKTimer->shared_from_this());
         }
     }
 }
@@ -204,14 +160,14 @@ KTimer::SP KTimerManager::addTimer(KTimer::SP timer)
         return nullptr;
     }
 
-    LOGD("addTimer(%p) %lu", timer.get(), timer->mUniqueId);
-    mTimerRWMutex.wlock();
-    auto it = mTimers.insert(timer).first;
-    bool atFront = (it == mTimers.begin()) && !mTickle;
-    if (atFront) {
-        mTickle = true;
+    bool atFront = false;
+    LOGD("addTimer(%p) %lu", timer.get(), timer->getUniqueId());
+    {
+        eular::WRAutoLock<eular::RWMutex> writeLock(m_timerRWMutex);
+        m_timerSet.insert(timer);
+        heap_insert(&m_timerHeap, timer->getHeapNode());
+        atFront = (m_timerHeap.root == timer->getHeapNode());
     }
-    mTimerRWMutex.unlock();
 
     if (atFront) {
         onTimerInsertedAtFront();

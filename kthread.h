@@ -15,34 +15,39 @@
 #include <functional>
 #include <memory>
 
-using namespace eular;
-
+namespace eular {
 class Thread
 {
 public:
+    typedef std::weak_ptr<Thread>   WP;
     typedef std::shared_ptr<Thread> SP;
-    Thread(std::function<void()> cb, const eular::String8 &threadName = "", uint32_t stackSize = 0);
+    typedef std::unique_ptr<Thread> Ptr;
+    typedef std::function<void()>   ThreadCB;
+
+    Thread(ThreadCB cb, const eular::String8 &threadName = "", uint32_t stackSize = 0);
     ~Thread();
 
-    static void         SetName(eular::String8 name);
-    static String8      GetName();
-    static Thread *     GetThis();
-    eular::String8      getName() const { return mName; }
-    pid_t               getTid() const { return mKernalTid; };
+    static Thread*      CurrentThread();
+    static void         SetThreadName(eular::String8 name);
+    static String8      GetThreadName();
+    eular::String8      getName() const { return m_name; }
+    pid_t               getTid() const { return m_tid; };
 
     void detach();
+    bool joinable() { return m_joinable; }
     void join();
 
 protected:
-    static void *entrance(void *arg);
+    static void *Entrance(void *arg);
 
 private:
-    pid_t                   mKernalTid;     // 内核tid
-    pthread_t               mTid;           // pthread线程ID
-    eular::String8          mName;
-    std::function<void()>   mCb;            // 线程执行函数
-    uint8_t                 mShouldJoin;    // 1为由用户回收线程，0为自动回收
-    eular::Sem              mSemaphore;     // 等待mKernalTid赋值
+    pid_t               m_tid;          // 内核tid
+    pthread_t           m_pthreadId;    // pthread线程ID
+    eular::String8      m_name;
+    ThreadCB            m_cb;           // 线程执行函数
+    uint8_t             m_joinable;     // 1为由用户回收线程，0为自动回收
+    eular::Sem          m_semaphore;    // 等待mKernalTid赋值
 };
 
+} // namespace eular
 #endif // __THREAD_H__

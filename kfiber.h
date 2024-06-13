@@ -8,10 +8,11 @@
 #ifndef __KCP_FIBER_H__
 #define __KCP_FIBER_H__
 
-#include <ucontext.h>
 #include <functional>
 #include <memory>
+#include <ucontext.h>
 
+namespace eular {
 class KFiber : public std::enable_shared_from_this<KFiber>
 {
     friend class KScheduler;
@@ -55,4 +56,5 @@ private:
     Callback        mCb;
 };
 
+} // namespace eular
 #endif  // __KCP_FIBER_H__

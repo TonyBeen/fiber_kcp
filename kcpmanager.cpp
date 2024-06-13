@@ -6,65 +6,61 @@
  ************************************************************************/
 
 #include "kcpmanager.h"
-#include <utils/utils.h>
-#include <log/log.h>
-#include <sys/epoll.h>
-#include <sys/eventfd.h>
+
 #include <errno.h>
 #include <string.h>
 #include <functional>
 
+#include <sys/epoll.h>
+#include <sys/eventfd.h>
+
+#include <utils/utils.h>
+#include <log/log.h>
+
 #define LOG_TAG "KcpManager"
 
-using namespace eular;
+static const uint32_t EPOLL_EVENT_SIZE = 1024;
 
-static uint32_t epoll_event_size = 1024;
+namespace eular {
 
-KcpManager::KcpManager(uint8_t threads, const String8 &name) :
-    mEventCount(0),
-    mEventFd(-1),
-    mKeepRun(false)
+static thread_local KcpManager *g_pKcpManager = nullptr;
+
+KcpManager::KcpManager(const String8 &name, bool userCaller) :
+    KScheduler(name, userCaller),
+    m_kcpCtxCount(0),
+    m_eventFd(-1),
+    m_keepRun(false)
 {
-    mScheduler.reset(new (std::nothrow)KScheduler(threads, false, name));
-    if (mScheduler == nullptr) {
-        LOGE("no memory");
-        return;
-    }
-
-    mEpollFd = epoll_create(epoll_event_size);
-    if (mEpollFd < 0) {
+    m_epollFd = epoll_create(EPOLL_EVENT_SIZE);
+    if (m_epollFd < 0) {
         LOGE("epoll_create error. [%d, %s]", errno, strerror(errno));
-        return;
+        throw eular::Exception("epoll_create error");
     }
-    mEventFd = eventfd(0, EFD_NONBLOCK);
-    if (mEventFd < 0) {
+    m_eventFd = eventfd(0, EFD_NONBLOCK);
+    if (m_eventFd < 0) {
         LOGE("eventfd error. [%d, %s]", errno, strerror(errno));
-        return;
+        throw eular::Exception("eventfd error");
     }
 
     epoll_event ev;
     memset(&ev, 0, sizeof(ev));
     ev.events = EPOLLIN | EPOLLET;
-    ev.data.fd = mEventFd;
+    ev.data.fd = m_eventFd;
 
-    int ret = epoll_ctl(mEpollFd, EPOLL_CTL_ADD, mEventFd, &ev);
+    int32_t ret = epoll_ctl(m_epollFd, EPOLL_CTL_ADD, m_eventFd, &ev);
     if (ret < 0) {
         LOGE("epoll_ctl error. [%d, %s]", errno, strerror(errno));
+        throw eular::Exception("epoll_ctl error");
     }
 }
 
 KcpManager::~KcpManager()
 {
     stop();
-    AutoLock<Mutex> lock(mCtxMutex);
-    for (auto it : mContextVec) {
-        if (it) {
-            delete it;
-        }
-    }
-    mContextVec.clear();
-    if (mEpollFd > 0) {
-        close(mEpollFd);
+    m_contextMap.clear();
+
+    if (m_epollFd > 0) {
+        close(m_epollFd);
     }
 }
 
@@ -74,30 +70,17 @@ bool KcpManager::addKcp(Kcp::SP kcp)
         return false;
     }
 
-    if (mEventCount >= epoll_event_size) {
+    if (m_kcpCtxCount >= EPOLL_EVENT_SIZE) {
         LOGW("events are full");
         return false;
     }
 
     epoll_event ev;
-    uint32_t tid = 0;
-    uint32_t min = mKcpPeerThread.begin()->second;
-    for (auto it = mKcpPeerThread.begin(); it != mKcpPeerThread.end(); ++it) {
-        if (it->second < min) {
-            min = it->second;
-            tid = it->first;
-        }
-    }
-    LOGD("will bind tid %u", tid);
-    int fd = kcp->mAttr.fd;
-
-    Context *ctx = nullptr;
+    int32_t sockFd = kcp->m_updSocket;
+    Context::SP ctx = nullptr;
     {
-        AutoLock<Mutex> lock(mCtxMutex);
-        if (fd >= mContextVec.size()) {
-            contextResize(fd * 1.5);
-        }
-        ctx = mContextVec[fd];
+        AutoLock<Mutex> lock(m_ctxMutex);
+        ctx = m_contextMap[sockFd];
     }
     if (ctx == nullptr) {
         return false;
@@ -106,21 +89,19 @@ bool KcpManager::addKcp(Kcp::SP kcp)
         return true;
     }
 
-    int flag = fcntl(fd, F_GETFL);
-    fcntl(fd, F_SETFL, flag | O_NONBLOCK);
+    kcp->m_pKcpManager = this;
+
+    int32_t flag = fcntl(sockFd, F_GETFL);
+    fcntl(sockFd, F_SETFL, flag | O_NONBLOCK);
     ctx->events = READ;
-    ctx->fd = fd;
-    ctx->read = std::bind(&Kcp::inputRoutine, kcp.get());
-    ctx->scheduler = mScheduler.get();
-    ctx->tid = tid;
-    ctx->timerId = addTimer(kcp->mAttr.updateTime,
-        std::bind(&Kcp::outputRoutine, kcp.get()), kcp->mAttr.updateTime, tid)->getUniqueId();
-    ev.data.ptr = ctx;
+    ctx->socketFd = sockFd;
+    ctx->read = std::bind(&Kcp::onReadEvent, kcp.get());
+    ctx->scheduler = this;
+    ev.data.ptr = ctx.get();
     ev.events = EPOLLET | EPOLLIN;
-    int rt = epoll_ctl(mEpollFd, EPOLL_CTL_ADD, fd, &ev);
+    int32_t rt = epoll_ctl(m_epollFd, EPOLL_CTL_ADD, sockFd, &ev);
     if (rt < 0) {
         ctx->resetContext(READ);
-        delTimer(ctx->timerId);
     }
     return rt == 0;
 }
@@ -131,80 +112,62 @@ bool KcpManager::delKcp(Kcp::SP kcp)
         return false;
     }
 
-    int fd = kcp->mAttr.fd;
-    int rt = epoll_ctl(mEpollFd, EPOLL_CTL_DEL, fd, nullptr);
+    int32_t sockFd = kcp->m_updSocket;
+    int32_t rt = epoll_ctl(m_epollFd, EPOLL_CTL_DEL, sockFd, nullptr);
     if (rt < 0) {
         LOGE("epoll_ctl error. [%d,%s]", errno, strerror(errno));
         return false;
     }
-    Context *ctx = nullptr;
+    Context::SP ctx;
     {
-        AutoLock<Mutex> lock(mCtxMutex);
-        ctx = mContextVec[fd];
+        AutoLock<Mutex> lock(m_ctxMutex);
+        ctx = m_contextMap[sockFd];
         LOG_ASSERT2(ctx != nullptr);
         ctx->resetContext(READ);
         ctx->resetContext(WRITE);
     }
-    delTimer(ctx->timerId);
     return true;
 }
 
-bool KcpManager::start(bool userCaller)
+void KcpManager::start()
 {
-    if (mKeepRun) {
-        return true;
-    }
-    mKeepRun = true;
-    mScheduler->start();
-    auto tidVec = mScheduler->gettids();
-    for (auto it : tidVec) {
-        mKcpPeerThread.insert(std::move(std::make_pair(it, 0)));
-    }
-    if (userCaller) {
-        threadloop();
-        return true;
-    }
-    mThread.reset(new (std::nothrow)Thread(std::bind(&KcpManager::threadloop, this)));
-    return mThread != nullptr;
-}
-
-bool KcpManager::stop()
-{
-    if (mKeepRun == false) {
-        return true;
-    }
-
-    mKeepRun = false;
-    mScheduler->stop();
-    return true;
-}
-
-void KcpManager::contextResize(uint32_t size)
-{
-    if (size == mContextVec.size()) {
+    if (m_keepRun) {
         return;
     }
-    if (size < mContextVec.size()) {
-        for (uint32_t i = size; i < mContextVec.size(); ++i) {
-            if (mContextVec[i] != nullptr) {
-                delete mContextVec[i];
-                mContextVec[i] = nullptr;
-            }
-        }
+    m_keepRun = true;
+
+    if (m_userCaller) {
+        g_pKcpManager = this;
+        threadloop();
+    } else {
+        m_thread = std::make_shared<Thread>(std::bind(&KcpManager::threadloop, this));
     }
-    mContextVec.resize(size);
-    uint32_t i = 0;
-    for (auto &it : mContextVec) {
-        if (it == nullptr) {
-            it = new Context;
-            it->fd = i++;
-        }
+}
+
+void KcpManager::stop()
+{
+    if (m_keepRun == false) {
+        return;
     }
+
+    m_keepRun = false;
+    KScheduler::stop();
+
+    if (m_thread && m_thread->joinable()) {
+        m_thread->join();
+    }
+}
+
+KcpManager *KcpManager::GetCurrentKcpManager()
+{
+    return g_pKcpManager;
 }
 
 void KcpManager::threadloop()
 {
-    epoll_event *events = new epoll_event[epoll_event_size];
+    g_pKcpManager = this;
+
+    epoll_event *events = new epoll_event[EPOLL_EVENT_SIZE];
     std::shared_ptr<epoll_event> ptr(events, [](epoll_event *p) {
         if (p) {
             delete[] p;
@@ -213,11 +176,16 @@ void KcpManager::threadloop()
     LOG_ASSERT2(events != nullptr);
 
     uint64_t timeoutms = 10;
-    while (mKeepRun) {
+    while (m_keepRun) {
+        {
+            eventfd_t count;
+            eventfd_read(m_eventFd, &count);
+        }
+
         timeoutms = getNearTimeout();
-        int nev = 0;
+        int32_t nev = 0;
         do {
-            nev = epoll_wait(mEpollFd, events, epoll_event_size, timeoutms);
+            nev = epoll_wait(m_epollFd, events, EPOLL_EVENT_SIZE, timeoutms);
             if (nev < 0 && errno == EINTR) {
             } else {
                 break;
@@ -229,15 +197,17 @@ void KcpManager::threadloop()
             break;
         }
 
-        std::list<std::pair<std::function<void()>, uint32_t>> cbs;
+        // 获取超时定时器并将其压到队列
+        std::list<KTimer::CallBack> cbs;
         listExpiredTimer(cbs);
-        mScheduler->schedule(cbs.begin(), cbs.end());
+        schedule(cbs.begin(), cbs.end());
 
-        for (int i = 0; i < nev; ++i) {
+        // 处理事件
+        for (int32_t i = 0; i < nev; ++i) {
             epoll_event &ev = events[i];
-            if (ev.data.fd == mEventFd) {
+            if (ev.data.fd == m_eventFd) {
                 eventfd_t value;
-                eventfd_read(mEventFd, &value);
+                eventfd_read(m_eventFd, &value);
                 continue;
             }
 
@@ -251,6 +221,7 @@ void KcpManager::threadloop()
             if (ev.events | EPOLLIN) {
                 ctx->triggerEvent(READ);
             }
+
             if (ev.events | EPOLLOUT) {
                 ctx->triggerEvent(WRITE);
             }
@@ -260,7 +231,7 @@ void KcpManager::threadloop()
 
 void KcpManager::onTimerInsertedAtFront()
 {
-    eventfd_write(mEventFd, 1);
+    eventfd_write(m_eventFd, 1);
 }
 
 void KcpManager::Context::resetContext(uint32_t event)
@@ -273,7 +244,6 @@ void KcpManager::Context::resetContext(uint32_t event)
         write = nullptr;
         break;
     default:
-        LOG_ASSERT2(false);
         break;
     }
 }
@@ -282,11 +252,13 @@ void KcpManager::Context::triggerEvent(Event event)
 {
     switch (event) {
     case READ:
-        scheduler->schedule(read, tid);
+        scheduler->schedule(read);
         break;
     case WRITE:
-        scheduler->schedule(write, tid);
+        scheduler->schedule(write);
     default:
         break;
     }
 }
+
+} // namespace eular
