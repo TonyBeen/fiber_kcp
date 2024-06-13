@@ -108,8 +108,8 @@ int Kcp::KcpOutput(const char *buf, int len, ikcpcb *kcp, void *user)
 
 void Kcp::inputRoutine()
 {
-    eular::ByteBuffer buffer;
-    uint8_t buf[512] = {0};
+    eular::ByteBuffer buffer(4096);
+    uint8_t buf[4096] = {0};
     sockaddr_in peerAddr;
     socklen_t len = sizeof(sockaddr_in);
     bool hasError = false;
@@ -140,7 +140,8 @@ void Kcp::inputRoutine()
         if (ret < 0) {
             return;
         }
-        buffer.resize(ret + 1);
+
+        buffer.reserve(ret);
         buffer.clear();
         int nrecv = ikcp_recv(mKcpHandle, (char *)buffer.data(), ret);
         LOGD("ikcp_recv size %d", nrecv);
