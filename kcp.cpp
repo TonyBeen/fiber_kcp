@@ -145,7 +145,7 @@ void Kcp::inputRoutine()
         int nrecv = ikcp_recv(mKcpHandle, (char *)buffer.data(), ret);
         LOGD("ikcp_recv size %d", nrecv);
         if (nrecv > 0) {
-            buffer.setDataSize(ret);
+            buffer.resize(ret);
             mRecvEvent(buffer, peerAddr);
         }
     }
