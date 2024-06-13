@@ -13,7 +13,7 @@
 #include <log/callstack.h>
 
 using namespace std;
-#define SERVER_IP   "127.0.0.1"
+
 #define SERVER_PORT 12000
 #define LOG_TAG     "kcp-bench-mark"
 
@@ -23,7 +23,7 @@ int createSocket()
     sockaddr_in addr;
     socklen_t len = sizeof(sockaddr_in);
 
-    server_fd = socket(AF_INET, SOCK_DGRAM, 0); // AF_INET:IPV4;SOCK_DGRAM:UDP
+    server_fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (server_fd < 0) {
         perror("create socket fail!");
         return -1;
@@ -31,8 +31,8 @@ int createSocket()
 
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = inet_addr(SERVER_IP); // IP地址，需要进行网络序转换，INADDR_ANY：本地地址
-    addr.sin_port = htons(SERVER_PORT);  // 端口号，需要网络序转换
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    addr.sin_port = htons(SERVER_PORT);
 
     ret = bind(server_fd, (struct sockaddr*)&addr, len);
     if(ret < 0) {
@@ -47,18 +47,26 @@ int createSocket()
 }
 
 static std::atomic<uint32_t> gRecvSize{0};
-static const uint16_t timeout = 500;
+static const uint16_t timeout = 1000;
 
 void onReadEvent(Kcp *kcp, ByteBuffer &buffer, sockaddr_in addr)
 {
-    LOGD("%s() [%s](%zu) [%s:%d]", __func__, (char *)buffer.data(), buffer.size(), inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+    // LOGD("%s() [%s:%d]", __func__, inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
     gRecvSize += buffer.size();
 }
 
 void onTimerEvent(Kcp *kcp)
 {
-    LOGI("onTimerEvent() %d b/s", gRecvSize * 2);
+    uint32_t recvSize = gRecvSize;
     gRecvSize = 0;
+    // recvSize *= 2;
+    if (recvSize / 1000 / 1000 > 0) {
+        LOGW("onTimerEvent() %d Mb/s", recvSize / 1000 / 1000);
+    } else if (recvSize / 1000 > 0) {
+        LOGW("onTimerEvent() %d Kb/s", recvSize / 1000);
+    } else {
+        LOGW("onTimerEvent() %d b/s", recvSize);
+    }
 }
 
 void signalCatch(int sig)
