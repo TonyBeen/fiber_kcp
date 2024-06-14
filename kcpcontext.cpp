@@ -53,6 +53,7 @@ void KcpContext::send(const eular::ByteBuffer &buffer)
 
 void KcpContext::closeContext()
 {
+    
     m_closeEvent(shared_from_this());
 }
 

@@ -61,7 +61,7 @@ protected:
     uint16_t        m_peerPort;
     String8         m_localHost;
     uint16_t        m_localPort;
-    uint64_t        m_timerId;
+    uint64_t        m_timerId;      // kcp发送数据定时器ID
 
 private:
     ikcpcb*         m_kcpHandle;

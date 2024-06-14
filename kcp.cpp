@@ -14,6 +14,9 @@
 
 #include <log/log.h>
 
+#include "ikcp.h"
+#include "kcp_protocol.h"
+
 #define LOG_TAG "Kcp"
 
 namespace eular {
@@ -33,6 +36,10 @@ Kcp::~Kcp()
 
 bool Kcp::bind(const eular::String8 &ip, uint16_t port) noexcept
 {
+    if (m_updSocket > 0) {
+        return true;
+    }
+
     sockaddr_in localAddr;
     socklen_t len = sizeof(sockaddr_in);
     m_updSocket = socket(AF_INET, SOCK_DGRAM, 0);
@@ -88,6 +95,5 @@ uint16_t Kcp::getLocalPort() const
 {
     return m_localPort;
 }
-
 
 } // namespace eular

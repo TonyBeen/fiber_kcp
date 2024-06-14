@@ -226,12 +226,19 @@ void KcpManager::threadloop()
                 ctx->triggerEvent(WRITE);
             }
         }
+
+        
     }
+}
+
+void KcpManager::tickle()
+{
+    eventfd_write(m_eventFd, 1);
 }
 
 void KcpManager::onTimerInsertedAtFront()
 {
-    eventfd_write(m_eventFd, 1);
+    tickle();
 }
 
 void KcpManager::Context::resetContext(uint32_t event)

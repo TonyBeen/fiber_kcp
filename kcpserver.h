@@ -67,7 +67,7 @@ protected:
     void onFINReceived(protocol::KcpProtocol *pKcpProtocolReq, sockaddr_in peerAddr);
 
     // 重置请求
-    void onRSTReceived(protocol::KcpProtocol *pKcpProtocolReq);
+    void onRSTReceived(protocol::KcpProtocol *pKcpProtocolReq, sockaddr_in peerAddr);
 
     // 连接超时
     void onConnectTimeout(uint32_t conv);

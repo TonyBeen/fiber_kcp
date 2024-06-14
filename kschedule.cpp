@@ -169,7 +169,6 @@ void KScheduler::idle()
 
 void KScheduler::tickle()
 {
-    // LOGD("KScheduler::tickle()");
 }
 
 bool KScheduler::stopping()

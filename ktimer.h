@@ -8,15 +8,15 @@
 #ifndef __KCP_TIMER_H__
 #define __KCP_TIMER_H__
 
+#include <stdint.h>
+#include <set>
+#include <list>
+#include <memory>
+#include <functional>
+
 #include <utils/utils.h>
 #include <utils/mutex.h>
 #include <utils/singleton.h>
-#include <sys/epoll.h>
-#include <stdint.h>
-#include <set>
-#include <memory>
-#include <list>
-#include <functional>
 
 #include "heap_timer.h"
 

@@ -15,7 +15,9 @@
 
 #define KCP_MASK        0xFFFFFF00u
 #define KCP_FLAG        0x4B435000u     // 'K' 'C' 'P' 0x00
-static const char KCP_ARRAY[] =  {'K', 'C', 'P', '\0'};
+
+// NOTE KCP传输时采用小端字节序, 故按PCK存储
+static const char KCP_ARRAY[] =  {'P', 'C', 'K'};
 
 namespace protocol {
 
@@ -41,7 +43,7 @@ struct KcpProtocol {
     uint32_t    sn;             // 随机序列号
     uint32_t    send_win_size;  // 发送窗口大小
     uint32_t    recv_win_size;  // 接收窗口大小
-    uint32_t    reserve;        // 保留
+    uint32_t    reserve;        // 用于客户端发送FIN/RST, 携带的交流号
 };
 static const uint32_t KCP_PROTOCOL_SIZE = sizeof(KcpProtocol);
 

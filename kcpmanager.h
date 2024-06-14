@@ -12,13 +12,13 @@
 #include <map>
 #include <vector>
 
+#include <sys/epoll.h>
+
 #include "kcp.h"
 #include "ktimer.h"
 #include "kschedule.h"
 
 namespace eular {
-
-
 class KcpManager : public KTimerManager, public KScheduler
 {
 public:
@@ -41,6 +41,7 @@ public:
 
 private:
     void threadloop();
+    virtual void tickle() override;
     virtual void onTimerInsertedAtFront() override;
 
     enum class KcpState {

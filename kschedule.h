@@ -37,12 +37,17 @@ public:
     template<class FiberOrCb>
     void schedule(FiberOrCb fc)
     {
-        scheduleNoLock(fc);
+        {
+            AutoLock lock(m_queueMutex);
+            scheduleNoLock(fc);
+        }
+        tickle();
     }
 
     template<class Iterator>
     void schedule(Iterator begin, Iterator end)
     {
+        AutoLock lock(m_queueMutex);
         while (begin != end) {
             scheduleNoLock(begin);
             ++begin;
@@ -90,6 +95,7 @@ protected:
     std::atomic<bool>   m_stopping;     // 是否停止
     String8             m_name;         // 调度器名字
     KFiber::SP          m_rootFiber;    // userCaller为true时有效
+    Mutex               m_queueMutex;   // 队列锁
     std::list<FiberBindThread>  m_fiberQueue;
 };
 

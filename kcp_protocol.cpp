@@ -128,7 +128,7 @@ static inline void DeserializeKcpProtocol(const void *pBuffer, KcpProtocol *pKcp
 
 static inline const uint8_t *DecodeUINT16(const uint8_t *p, uint16_t *w)
 {
-    static_assert(sizeof(uint16_t) == 2);
+    static_assert(sizeof(uint16_t) == 2, "");
 
 #if BYTE_ORDER == BIG_ENDIAN
     *w = *(uint8_t *)(p + 1);
@@ -143,7 +143,7 @@ static inline const uint8_t *DecodeUINT16(const uint8_t *p, uint16_t *w)
 
 static inline const uint8_t *DecodeUINT32(const uint8_t *p, uint32_t *l)
 {
-    static_assert(sizeof(uint32_t) == 4);
+    static_assert(sizeof(uint32_t) == 4, "");
 
 #if BYTE_ORDER == BIG_ENDIAN
     *l = *(uint8_t *)(p + 3);

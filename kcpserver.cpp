@@ -18,6 +18,7 @@
 
 #include "ikcp.h"
 #include "kcpmanager.h"
+#include "kcp_utils.h"
 
 #define LOG_TAG "KcpServer"
 
@@ -37,12 +38,12 @@ KcpServer::~KcpServer()
 {
 }
 
-void KcpServer::installConnectEvent(ConnectEventCB connectEventCB)
+void KcpServer::installConnectEvent(ConnectEventCB connectEventCB) noexcept
 {
     m_connectEventCB = connectEventCB;
 }
 
-void KcpServer::setConnectTimeout(uint32_t timeout)
+void KcpServer::setConnectTimeout(uint32_t timeout) noexcept
 {
     if (timeout < MIN_TIMEOUT) {
         timeout = MIN_TIMEOUT;
@@ -53,7 +54,7 @@ void KcpServer::setConnectTimeout(uint32_t timeout)
     m_connectTimeout = timeout;
 }
 
-void KcpServer::setDisconnectTimeout(uint32_t timeout)
+void KcpServer::setDisconnectTimeout(uint32_t timeout) noexcept
 {
     if (timeout < MIN_TIMEOUT) {
         timeout = MIN_TIMEOUT;
@@ -77,13 +78,17 @@ void KcpServer::onReadEvent()
 
     uint32_t kcpFlag = 0;
 
+    // 预留8KB字节
+    static thread_local ByteBuffer kcpBuffer(8 * 1024);
+
     uint32_t canReadSize = 0;
     ioctl(m_updSocket, FIONREAD, &canReadSize);
+    kcpBuffer.reserve(canReadSize);
+    kcpBuffer.clear();
 
-    // FIXME 过多的系统调用, 如果在大量发送数据情况下, 会导致线程长时间阻塞, 定时器无法及时调用
-    // TODO 将数据完全读出, 并将数据按照sockaddr进行分配, 最后循环进行协议解析, 通过增加内存占用, 减少系统调用及拷贝次数
     do {
-        int32_t realReadSize = TEMP_FAILURE_RETRY(::recvfrom(m_updSocket, headerBuffer, KCP_HEADER_SIZE, MSG_PEEK, (sockaddr *)&peerAddr, &len));
+        int32_t realReadSize = TEMP_FAILURE_RETRY(::recvfrom(m_updSocket, kcpBuffer.data(), kcpBuffer.capacity(), 0,
+                                                            (sockaddr *)&peerAddr, &len));
         if (realReadSize < 0) {
             if (errno != EAGAIN) {
                 LOGE("recvfrom error. [%d,%s]", error, strerror(errno));
@@ -93,26 +98,27 @@ void KcpServer::onReadEvent()
 
         // 杂数据
         if (realReadSize < KCP_HEADER_SIZE) {
-            TEMP_FAILURE_RETRY(::recvfrom(m_updSocket, headerBuffer, KCP_HEADER_SIZE, 0, (sockaddr *)&peerAddr, &len));
-            break;
+            continue;
         }
 
-        uint8_t *pFound = (uint8_t *)memmem(headerBuffer, KCP_HEADER_SIZE, KCP_ARRAY, sizeof(KCP_ARRAY) - 1);
+        kcpBuffer.resize(realReadSize);
+        uint8_t *pHeaderBuf = kcpBuffer.data();
+        uint8_t *pFound = (uint8_t *)memmem(pHeaderBuf, kcpBuffer.size(), KCP_ARRAY, sizeof(KCP_ARRAY));
         if (pFound == nullptr) {
-            // 未找到KCP标志, 回退2个字节并将无关数据读出
-            TEMP_FAILURE_RETRY(::recvfrom(m_updSocket, headerBuffer, KCP_HEADER_SIZE - sizeof(KCP_ARRAY) + 2, 0, (sockaddr *)&peerAddr, &len));
+            char ipv4Host[INET_ADDRSTRLEN] = {0};
+            inet_ntop(AF_INET, &peerAddr.sin_addr, ipv4Host, INET_ADDRSTRLEN);
+            LOGW("receive %zu bytes from [%s:%d] will ignore.", kcpBuffer.size(), ipv4Host, ntohs(peerAddr.sin_port));
+            // 未找到KCP标志, 忽略此地址发送的数据
+            kcpBuffer.clear();
             continue;
         }
 
         // 存在无关数据, 需要将无关数据剔除
-        if (pFound != headerBuffer) {
-            TEMP_FAILURE_RETRY(::recvfrom(m_updSocket, headerBuffer, pFound - headerBuffer, 0, (sockaddr *)&peerAddr, &len));
-            realReadSize = TEMP_FAILURE_RETRY(::recvfrom(m_updSocket, headerBuffer, KCP_HEADER_SIZE, 0, (sockaddr *)&peerAddr, &len));
-            LOG_ASSERT2(realReadSize == KCP_HEADER_SIZE);
+        if (pFound != pHeaderBuf) {
+            pHeaderBuf = pFound;
         }
 
         // 解析协议
-        uint8_t *pHeaderBuf = headerBuffer;
         protocol::KcpProtocol kcpProtoInput;
         protocol::DeserializeKcpProtocol(pHeaderBuf, &kcpProtoInput);
 
@@ -139,6 +145,7 @@ void KcpServer::onReadEvent()
             // 处理KCP数据
             onKcpDataReceived(pHeaderBuf, kcpProtoInput.kcp_conv, peerAddr);
         }
+        kcpBuffer.clear();
     } while (true);
     LOGW("%s <end>", __PRETTY_FUNCTION__);
 }
@@ -221,6 +228,7 @@ void KcpServer::onKcpDataReceived(const uint8_t *pHeaderBuf, uint32_t conv, sock
 // 连接请求
 void KcpServer::onSYNReceived(protocol::KcpProtocol *pKcpProtocolReq, sockaddr_in peerAddr)
 {
+    LOGD("%s SYN Received from %s", __PRETTY_FUNCTION__, utils::Address2String((sockaddr *)&peerAddr));
     // 找到一个未使用的会话号
     uint32_t communicationNo = 0;
     for (uint32_t i = 0; i < KCP_MAX_CONV; ++i) {
@@ -284,6 +292,7 @@ void KcpServer::onSYNReceived(protocol::KcpProtocol *pKcpProtocolReq, sockaddr_i
 // 确认断开连接请求
 void KcpServer::onACKReceived(protocol::KcpProtocol *pKcpProtocolReq, sockaddr_in peerAddr)
 {
+    LOGD("%s ACK Received from %s", __PRETTY_FUNCTION__, utils::Address2String((sockaddr *)&peerAddr));
     KcpFINInfo finInfo = {
         .conv = 0
     };
@@ -310,12 +319,36 @@ void KcpServer::onACKReceived(protocol::KcpProtocol *pKcpProtocolReq, sockaddr_i
 // 请求断开连接
 void KcpServer::onFINReceived(protocol::KcpProtocol *pKcpProtocolReq, sockaddr_in peerAddr)
 {
+    LOGD("%s FIN Received from %s", __PRETTY_FUNCTION__, utils::Address2String((sockaddr *)&peerAddr));
+    uint32_t conv = pKcpProtocolReq->reserve;
+    protocol::KcpProtocol kcpProtoOutput;
+    protocol::InitKcpProtocol(&kcpProtoOutput);
+    uint8_t kcpProtoBuffer[protocol::KCP_PROTOCOL_SIZE] = {0};
 
+    kcpProtoOutput.kcp_conv = conv;
+    kcpProtoOutput.kcp_mode = pKcpProtocolReq->kcp_mode;
+    kcpProtoOutput.syn_command = protocol::SYNCommand::ACK;
+    kcpProtoOutput.sn = pKcpProtocolReq->sn;
+    kcpProtoOutput.send_win_size = pKcpProtocolReq->send_win_size;
+    kcpProtoOutput.recv_win_size = pKcpProtocolReq->recv_win_size;
+    protocol::SerializeKcpProtocol(&kcpProtoOutput, kcpProtoBuffer);
+
+    auto it = m_kcpContextMap.find(conv);
+    if (it != m_kcpContextMap.end()) {
+        KcpManager::GetCurrentKcpManager()->delTimer(it->second->m_timerId);
+
+        // 主动调用更新数据
+        it->second->onUpdateTimeout();
+        m_kcpContextMap.erase(it);
+    }
+
+    ::sendto(m_updSocket, kcpProtoBuffer, KCP_HEADER_SIZE, 0, (sockaddr *)&peerAddr, sizeof(peerAddr));
 }
 
 // 重置请求
-void KcpServer::onRSTReceived(protocol::KcpProtocol *pKcpProtocolReq)
+void KcpServer::onRSTReceived(protocol::KcpProtocol *pKcpProtocolReq, sockaddr_in peerAddr)
 {
+    LOGD("%s RST Received from %s", __PRETTY_FUNCTION__, utils::Address2String((sockaddr *)&peerAddr));
 
 }
 
