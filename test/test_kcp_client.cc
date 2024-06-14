@@ -17,12 +17,12 @@
 
 using namespace std;
 
-#define SERVER_IP   "127.0.0.1"
+const char *SERVER_IP  = "127.0.0.1";
 #define SERVER_PORT 12000
 
 void onReadEvent(ByteBuffer &buffer, sockaddr_in addr)
 {
-    LOGI("%s() %s [%s:%d]", __func__, (char *)buffer.data(), inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+    // LOGI("%s() %s [%s:%d]", __func__, (char *)buffer.data(), inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
 }
 
 void signalCatch(int sig)
@@ -37,6 +37,10 @@ void signalCatch(int sig)
 
 int main(int argc, char **argv)
 {
+    if (argc > 1) {
+        SERVER_IP = argv[1];
+    }
+
     signal(SIGSEGV, signalCatch);
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd < 0) {
@@ -54,7 +58,7 @@ int main(int argc, char **argv)
     attr.fd = fd;
     attr.autoClose = true;
     attr.conv = 0x1024;
-    attr.interval = 20;
+    attr.interval = 10;
     attr.addr = addr;
     attr.nodelay = 1;
     attr.fastResend = 2;
@@ -67,18 +71,25 @@ int main(int argc, char **argv)
     KcpManager *manager = KcpManagerInstance::Get(1, false, "test_kcp_client");
     manager->addKcp(kcp);
 
-    char buf[128] = {0};
+    int32_t fileFd = ::open("./Image_800mb.rar", O_RDONLY);
+    assert(fileFd > 0);
+
+    static const uint32_t SIZE = (1400 - 24) * 32;
+
+    char buf[SIZE] = {0};
     uint16_t times = 0;
     while (true) {
-        snprintf(buf, sizeof(buf), "Hello (times: %d)", ++times);
-        kcp->send(ByteBuffer(buf, strlen(buf)));
-        printf("send -> %s\n", buf);
-        msleep(20); // 发送太快会使发送窗口缓存太多而不能把数据发出去
-        if (times == 1024) {
+        int32_t readSize = ::read(fileFd, buf, sizeof(buf));
+        if (readSize < 0) {
+            perror("read error");
             break;
         }
+
+        kcp->send(ByteBuffer(buf, readSize));
+        msleep(10); // 发送太快会使发送窗口缓存太多而不能把数据发出去
     }
 
+    ::close(fileFd);
     sleep(1);
     return 0;
 }
