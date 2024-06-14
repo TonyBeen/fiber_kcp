@@ -47,7 +47,7 @@ int createSocket()
 }
 
 static std::atomic<uint32_t> gRecvSize{0};
-static const uint16_t timeout = 1000;
+static const uint16_t timeout = 500;
 
 void onReadEvent(Kcp *kcp, ByteBuffer &buffer, sockaddr_in addr)
 {
@@ -59,7 +59,7 @@ void onTimerEvent(Kcp *kcp)
 {
     uint32_t recvSize = gRecvSize;
     gRecvSize = 0;
-    // recvSize *= 2;
+    recvSize *= 2;
     if (recvSize / 1000 / 1000 > 0) {
         LOGW("onTimerEvent() %d Mb/s", recvSize / 1000 / 1000);
     } else if (recvSize / 1000 > 0) {
@@ -96,7 +96,7 @@ int main(int argc, char **argv)
     attr.fd = udp;
     attr.autoClose = true;
     attr.conv = 0x1024;
-    attr.interval = 20;
+    attr.interval = 10;
     attr.addr = addr;
     attr.nodelay = 1;
     attr.fastResend = 2;
