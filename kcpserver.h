@@ -18,6 +18,7 @@
 
 namespace eular {
 using ConnectEventCB = std::function<bool(std::shared_ptr<KcpContext>)>;
+using DisconnectEventCB = std::function<void(std::shared_ptr<KcpContext>)>;
 
 class KcpServer : public Kcp
 {
@@ -30,11 +31,18 @@ public:
     ~KcpServer();
 
     /**
-     * @brief 注册连接事件
+     * @brief 注册连接事件(非线程安全)
      * 
      * @param connectEventCB 连接回调
      */
     void installConnectEvent(ConnectEventCB connectEventCB) noexcept;
+
+    /**
+     * @brief 注册断连事件(非线程安全)
+     * 
+     * @param disconnectEventCB 
+     */
+    void installDisconnectEvent(DisconnectEventCB disconnectEventCB) noexcept;
 
     /**
      * @brief 设置连接超时, 默认3000(ms)
@@ -53,6 +61,9 @@ public:
 protected:
     // 读事件
     void onReadEvent() override;
+
+    // 处理UDP数据
+    void onSocketDataReceived(const uint8_t *pHeaderBuf, uint32_t bufSize, sockaddr_in peerAddr);
 
     // 会话数据
     void onKcpDataReceived(const uint8_t *pHeaderBuf, uint32_t conv, sockaddr_in peerAddr);
@@ -101,6 +112,7 @@ private:
     uint32_t                            m_connectTimeout;       // 连接超时
     uint32_t                            m_disconnectTimeout;    // 断连超时
     ConnectEventCB                      m_connectEventCB;       // 连接回调
+    DisconnectEventCB                   m_disconnectEventCB;    // 断连回调
     std::list<KcpSYNInfo>               m_synConnectQueue;      // 半连接队列
     std::list<KcpFINInfo>               m_finDisconnectQueue;   // 半断连队列
     std::map<uint32_t, KcpContext::SP>  m_kcpContextMap;        // 会话号 -> KcpContext的映射

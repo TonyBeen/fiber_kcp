@@ -43,6 +43,11 @@ void KcpServer::installConnectEvent(ConnectEventCB connectEventCB) noexcept
     m_connectEventCB = connectEventCB;
 }
 
+void KcpServer::installDisconnectEvent(DisconnectEventCB disconnectEventCB) noexcept
+{
+    m_disconnectEventCB = disconnectEventCB;
+}
+
 void KcpServer::setConnectTimeout(uint32_t timeout) noexcept
 {
     if (timeout < MIN_TIMEOUT) {
@@ -78,8 +83,8 @@ void KcpServer::onReadEvent()
 
     uint32_t kcpFlag = 0;
 
-    // 预留8KB字节
-    static thread_local ByteBuffer kcpBuffer(8 * 1024);
+    // 预留8 * MTU_SIZE字节
+    static thread_local ByteBuffer kcpBuffer(8 * MTU_SIZE);
 
     uint32_t canReadSize = 0;
     ioctl(m_updSocket, FIONREAD, &canReadSize);
@@ -148,6 +153,10 @@ void KcpServer::onReadEvent()
         kcpBuffer.clear();
     } while (true);
     LOGW("%s <end>", __PRETTY_FUNCTION__);
+}
+
+void KcpServer::onSocketDataReceived(const uint8_t *pHeaderBuf, uint32_t bufSize, sockaddr_in peerAddr)
+{
 }
 
 // TODO UDP面向无连接, 使用recvfrom读取需要先将缓存读取完毕, 并按照addr进行划分.
@@ -312,6 +321,9 @@ void KcpServer::onACKReceived(protocol::KcpProtocol *pKcpProtocolReq, sockaddr_i
         KcpManager::GetCurrentKcpManager()->delTimer(finInfo.timerId);
         KcpManager::GetCurrentKcpManager()->delTimer(it->second->m_timerId);
 
+        if (m_disconnectEventCB) {
+            m_disconnectEventCB(it->second);
+        }
         m_kcpContextMap.erase(it);
     }
 }
@@ -339,6 +351,10 @@ void KcpServer::onFINReceived(protocol::KcpProtocol *pKcpProtocolReq, sockaddr_i
 
         // 主动调用更新数据
         it->second->onUpdateTimeout();
+
+        if (m_disconnectEventCB) {
+            m_disconnectEventCB(it->second);
+        }
         m_kcpContextMap.erase(it);
     }
 
@@ -349,7 +365,19 @@ void KcpServer::onFINReceived(protocol::KcpProtocol *pKcpProtocolReq, sockaddr_i
 void KcpServer::onRSTReceived(protocol::KcpProtocol *pKcpProtocolReq, sockaddr_in peerAddr)
 {
     LOGD("%s RST Received from %s", __PRETTY_FUNCTION__, utils::Address2String((sockaddr *)&peerAddr));
+    uint32_t conv = pKcpProtocolReq->reserve;
+    auto it = m_kcpContextMap.find(conv);
+    if (it != m_kcpContextMap.end()) {
+        KcpManager::GetCurrentKcpManager()->delTimer(it->second->m_timerId);
 
+        // 主动调用更新数据
+        it->second->onUpdateTimeout();
+
+        if (m_disconnectEventCB) {
+            m_disconnectEventCB(it->second);
+        }
+        m_kcpContextMap.erase(it);
+    }
 }
 
 void KcpServer::onConnectTimeout(uint32_t conv)

@@ -11,7 +11,9 @@
 #include <stdint.h>
 
 #define KCP_MAX_CONV    256
+#ifndef MTU_SIZE
 #define MTU_SIZE        1400
+#endif
 
 #define KCP_MASK        0xFFFFFF00u
 #define KCP_FLAG        0x4B435000u     // 'K' 'C' 'P' 0x00
