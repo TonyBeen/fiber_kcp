@@ -14,7 +14,7 @@
 
 #include <utils/sysdef.h>
 
-#include "endian.hpp"
+#include <utils/endian.hpp>
 
 #ifndef BYTE_ORDER
 static std::once_flag g_endianOnceFlag;
