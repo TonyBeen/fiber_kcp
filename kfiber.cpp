@@ -75,8 +75,7 @@ KFiber::KFiber(std::function<void()> cb, uint64_t stackSize) :
     mCtx.uc_link = nullptr;
     makecontext(&mCtx, &FiberEntry, 0);
 
-    LOGD("KFiber::KFiber(std::function<void()>, uint64_t) id = %lu, total = %d",
-        mFiberId, gFiberCount.load());
+    LOGD("KFiber::KFiber(std::function<void()>, uint64_t) id = %lu, total = %d", mFiberId, gFiberCount.load());
 }
 
 KFiber::~KFiber()
@@ -141,7 +140,7 @@ KFiber::SP KFiber::GetThis()
     if (gCurrentFiber) {
         return gCurrentFiber->shared_from_this();
     }
-    KFiber::SP fiber(new KFiber());
+    KFiber::SP fiber(new KFiber()); // std::make_shared<KFiber>()
     LOG_ASSERT(fiber.get() == gCurrentFiber, "");
     gThreadMainFiber = fiber;
     LOG_ASSERT(gThreadMainFiber, "");

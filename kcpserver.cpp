@@ -14,6 +14,7 @@
 
 #include <utils/utils.h>
 #include <utils/exception.h>
+#include <utils/elapsed_time.h>
 #include <log/log.h>
 
 #include "ikcp.h"
@@ -27,6 +28,7 @@
 
 namespace eular {
 KcpServer::KcpServer() :
+    m_kcpBuffer(4 * MTU_SIZE),
     m_connectTimeout(3000),
     m_disconnectTimeout(3000)
 {
@@ -83,17 +85,22 @@ void KcpServer::onReadEvent()
 
     uint32_t kcpFlag = 0;
 
-    // 预留8 * MTU_SIZE字节
-    static thread_local ByteBuffer kcpBuffer(8 * MTU_SIZE);
+    // uint32_t canReadSize = 0;
+    // ioctl(m_updSocket, FIONREAD, &canReadSize);
 
-    uint32_t canReadSize = 0;
-    ioctl(m_updSocket, FIONREAD, &canReadSize);
-    kcpBuffer.reserve(canReadSize);
-    kcpBuffer.clear();
-
+    // NOTE recvfrom在接收时按包收, UDP包最大长度为MTU, 故KCP一包长度为MTU
+    m_kcpBuffer.clear();
     do {
-        int32_t realReadSize = TEMP_FAILURE_RETRY(::recvfrom(m_updSocket, kcpBuffer.data(), kcpBuffer.capacity(), 0,
+#ifdef _DEBUG
+        ElapsedTime stopwatch(ElapsedTimeType::MICROSECOND);
+        stopwatch.start();
+#endif
+        int32_t realReadSize = TEMP_FAILURE_RETRY(::recvfrom(m_updSocket, m_kcpBuffer.data(), m_kcpBuffer.capacity(), 0,
                                                             (sockaddr *)&peerAddr, &len));
+#ifdef _DEBUG
+        stopwatch.stop();
+        LOGI("recvfrom elapsed %zu us", stopwatch.elapsedTime());
+#endif
         if (realReadSize < 0) {
             if (errno != EAGAIN) {
                 LOGE("recvfrom error. [%d,%s]", error, strerror(errno));
@@ -106,27 +113,19 @@ void KcpServer::onReadEvent()
             continue;
         }
 
-        kcpBuffer.resize(realReadSize);
-        uint8_t *pHeaderBuf = kcpBuffer.data();
-        uint8_t *pFound = (uint8_t *)memmem(pHeaderBuf, kcpBuffer.size(), KCP_ARRAY, sizeof(KCP_ARRAY));
-        if (pFound == nullptr) {
-            char ipv4Host[INET_ADDRSTRLEN] = {0};
-            inet_ntop(AF_INET, &peerAddr.sin_addr, ipv4Host, INET_ADDRSTRLEN);
-            LOGW("receive %zu bytes from [%s:%d] will ignore.", kcpBuffer.size(), ipv4Host, ntohs(peerAddr.sin_port));
-            // 未找到KCP标志, 忽略此地址发送的数据
-            kcpBuffer.clear();
-            continue;
-        }
+        m_kcpBuffer.resize(realReadSize);
+        uint8_t *pHeaderBuf = m_kcpBuffer.data();
 
-        // 存在无关数据, 需要将无关数据剔除
-        if (pFound != pHeaderBuf) {
-            pHeaderBuf = pFound;
+        IUINT32 conv = ikcp_getconv(pHeaderBuf);
+        if (conv & KCP_FLAG != KCP_FLAG) {
+            LOGW("Received a buffer without KCP_FALG(%#x) %#x", KCP_FLAG, conv);
+            m_kcpBuffer.clear();
+            continue;
         }
 
         // 解析协议
         protocol::KcpProtocol kcpProtoInput;
         protocol::DeserializeKcpProtocol(pHeaderBuf, &kcpProtoInput);
-
         LOGI("kcp conv = %#x", kcpProtoInput.kcp_conv);
 
         if (kcpProtoInput.kcp_conv == KCP_FLAG) {
@@ -150,7 +149,7 @@ void KcpServer::onReadEvent()
             // 处理KCP数据
             onKcpDataReceived(pHeaderBuf, kcpProtoInput.kcp_conv, peerAddr);
         }
-        kcpBuffer.clear();
+        m_kcpBuffer.clear();
     } while (true);
     LOGW("%s <end>", __PRETTY_FUNCTION__);
 }

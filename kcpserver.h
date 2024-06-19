@@ -109,6 +109,7 @@ protected:
 
 private:
     BitMap                              m_kcpConvBitmap;        // 会话号位图
+    ByteBuffer                          m_kcpBuffer;            // 存储KCP数据
     uint32_t                            m_connectTimeout;       // 连接超时
     uint32_t                            m_disconnectTimeout;    // 断连超时
     ConnectEventCB                      m_connectEventCB;       // 连接回调
