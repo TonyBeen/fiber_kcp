@@ -71,10 +71,10 @@ int main(int argc, char **argv)
     KcpManager *manager = KcpManagerInstance::Get(1, false, "test_kcp_client");
     manager->addKcp(kcp);
 
-    int32_t fileFd = ::open("./Image_800mb.rar", O_RDONLY);
+    int32_t fileFd = ::open("./Temp.zip", O_RDONLY);
     assert(fileFd > 0);
 
-    static const uint32_t SIZE = (1400 - 24) * 32;
+    static const uint32_t SIZE = (1400 - 24) * 16;
 
     char buf[SIZE] = {0};
     uint16_t times = 0;
@@ -85,10 +85,15 @@ int main(int argc, char **argv)
             break;
         }
 
+        if (readSize == 0) {
+            break;
+        }
+
         kcp->send(ByteBuffer(buf, readSize));
         msleep(10); // 发送太快会使发送窗口缓存太多而不能把数据发出去
     }
 
+    sleep(10);
     ::close(fileFd);
     sleep(1);
     return 0;
