@@ -108,46 +108,41 @@ int Kcp::KcpOutput(const char *buf, int len, ikcpcb *kcp, void *user)
 
 void Kcp::inputRoutine()
 {
-    eular::ByteBuffer buffer(4096);
-    uint8_t buf[4096] = {0};
+    char buf[2 * 1400] = {0};
     sockaddr_in peerAddr;
     socklen_t len = sizeof(sockaddr_in);
-    bool hasError = false;
 
-    // TODO 对buffer进行协议解析
     while (true) {
-        int nrecv = ::recvfrom(mAttr.fd, buf, sizeof(buf), 0, (sockaddr *)&peerAddr, &len);
+        int32_t nrecv = ::recvfrom(mAttr.fd, buf, sizeof(buf), 0, (sockaddr *)&peerAddr, &len);
         if (nrecv < 0) {
             if (errno != EAGAIN) {
                 LOGE("recvfrom error. [%d,%s]", error, strerror(errno));
-                hasError = true;
             }
+
             break;
         }
-        buffer.append(buf, nrecv);
-    }
+        LOGD("recvfrom [%s:%d] size %zu", inet_ntoa(peerAddr.sin_addr), ntohs(peerAddr.sin_port), nrecv);
+        int32_t conv = ikcp_getconv(buf);
+        if (conv != mAttr.conv)
+        {
+            continue;
+        }
 
-    LOGD("recvfrom [%s:%d] size %zu", inet_ntoa(peerAddr.sin_addr), ntohs(peerAddr.sin_port), buffer.size());
-    mAttr.addr = peerAddr;
-
-    if (!hasError) {
-        int ret = ikcp_input(mKcpHandle, (char *)buffer.data(), buffer.size());
+        int32_t ret = ikcp_input(mKcpHandle, buf, nrecv);
         if (ret < 0) {
             LOGE("ikcp_input error. %d", ret);
-            return;
-        }
-        ret = ikcp_peeksize(mKcpHandle);
-        if (ret < 0) {
-            return;
+            continue;
         }
 
-        buffer.reserve(ret);
-        buffer.clear();
-        int nrecv = ikcp_recv(mKcpHandle, (char *)buffer.data(), ret);
-        LOGD("ikcp_recv size %d", nrecv);
-        if (nrecv > 0) {
-            buffer.resize(ret);
-            mRecvEvent(buffer, peerAddr);
+        ret = ikcp_peeksize(mKcpHandle);
+        if (ret > 0) {
+            eular::ByteBuffer buffer(ret);
+            nrecv = ikcp_recv(mKcpHandle, (char *)buffer.data(), ret);
+            LOGD("ikcp_recv size %d", nrecv);
+            if (nrecv > 0) {
+                buffer.resize(nrecv);
+                mRecvEvent(buffer, peerAddr);
+            }
         }
     }
 }
