@@ -108,6 +108,7 @@ int Kcp::KcpOutput(const char *buf, int len, ikcpcb *kcp, void *user)
 
 void Kcp::inputRoutine()
 {
+    LOGD("----------> begin <----------");
     char buf[2 * 1400] = {0};
     sockaddr_in peerAddr;
     socklen_t len = sizeof(sockaddr_in);
@@ -125,26 +126,29 @@ void Kcp::inputRoutine()
         int32_t conv = ikcp_getconv(buf);
         if (conv != mAttr.conv)
         {
+            LOGE("conv(%d) != self_conv(%d)", conv, mAttr.conv);
             continue;
         }
+        mAttr.addr = peerAddr;
 
         int32_t ret = ikcp_input(mKcpHandle, buf, nrecv);
         if (ret < 0) {
             LOGE("ikcp_input error. %d", ret);
             continue;
         }
+    }
 
-        ret = ikcp_peeksize(mKcpHandle);
-        if (ret > 0) {
-            eular::ByteBuffer buffer(ret);
-            nrecv = ikcp_recv(mKcpHandle, (char *)buffer.data(), ret);
-            LOGD("ikcp_recv size %d", nrecv);
-            if (nrecv > 0) {
-                buffer.resize(nrecv);
-                mRecvEvent(buffer, peerAddr);
-            }
+    int32_t ret = ikcp_peeksize(mKcpHandle);
+    if (ret > 0) {
+        eular::ByteBuffer buffer(ret);
+        int32_t nrecv = ikcp_recv(mKcpHandle, (char *)buffer.data(), ret);
+        LOGD("ikcp_recv size %d", nrecv);
+        if (nrecv > 0) {
+            buffer.resize(nrecv);
+            mRecvEvent(buffer, peerAddr);
         }
     }
+    LOGD("----------> end <----------");
 }
 
 void Kcp::outputRoutine()
