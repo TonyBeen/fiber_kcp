@@ -13,13 +13,15 @@
 #include <memory>
 #include <functional>
 
+#include <moodycamel/readerwriterqueue.h>
+
 #include <utils/mutex.h>
 #include <utils/buffer.h>
 #include <utils/sysdef.h>
 
 #include "kcpsetting.h"
 
-struct ikcpcb;
+struct IKCPCB;
 
 namespace eular {
 class KcpContext;
@@ -37,7 +39,7 @@ public:
 
     void setSetting(const KcpSetting &setting);
     bool installRecvEvent(ReadEventCB onRecvEvent);
-    void send(const eular::ByteBuffer &buffer);
+    bool send(eular::ByteBuffer &&buffer);
     void closeContext();
 
     const String8&  getLocalHost() const;
@@ -46,6 +48,7 @@ public:
     uint16_t        getPeerPort() const;
 
 protected:
+    // KCP发送接口
     static int KcpOutput(const char *buf, int len, ikcpcb *kcp, void *user);
 
     // ikcp_update超时回调
@@ -54,6 +57,7 @@ protected:
     // 收到数据
     void onRecv(const eular::ByteBuffer &inputBuffer);
 
+    // 重置
     void reset();
 
 protected:
@@ -64,12 +68,13 @@ protected:
     uint64_t        m_timerId;      // kcp发送数据定时器ID
 
 private:
-    ikcpcb*         m_kcpHandle;
+    IKCPCB*         m_kcpHandle;
     KcpSetting      m_setting;
     ReadEventCB     m_recvEvent;
     ContextCloseCB  m_closeEvent;
-    eular::Mutex    m_queueMutex;
-    std::list<eular::ByteBuffer> m_sendBufQueue;
+
+    using LockFreeQueue = moodycamel::BlockingReaderWriterQueue<eular::ByteBuffer>;
+    LockFreeQueue   m_sendBufQueue;
 };
 
 } // namespace eular

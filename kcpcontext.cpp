@@ -46,14 +46,13 @@ bool KcpContext::installRecvEvent(ReadEventCB onRecvEvent)
     m_recvEvent = onRecvEvent;
 }
 
-void KcpContext::send(const eular::ByteBuffer &buffer)
+bool KcpContext::send(eular::ByteBuffer &&buffer)
 {
-
+    return m_sendBufQueue.enqueue(std::forward<eular::ByteBuffer>(buffer));
 }
 
 void KcpContext::closeContext()
 {
-    
     m_closeEvent(shared_from_this());
 }
 
@@ -90,18 +89,12 @@ int KcpContext::KcpOutput(const char *buf, int len, ikcpcb *kcp, void *user)
 
 void KcpContext::onUpdateTimeout()
 {
-    std::list<eular::ByteBuffer> queue;
-    int32_t status = 0;
-    {
-        eular::AutoLock<eular::Mutex> lock(m_queueMutex);
-        for (auto it = m_sendBufQueue.begin(); it != m_sendBufQueue.end(); ) {
-            status = ikcp_send(m_kcpHandle, (const char *)(it->const_data()), it->size());
-            if (status < 0) {
-                LOGE("ikcp_send error. %d", status);
-                break;
-            }
-
-            it = m_sendBufQueue.erase(it);
+    eular::ByteBuffer buffer;
+    while (m_sendBufQueue.try_dequeue(buffer)) {
+        int32_t status = ikcp_send(m_kcpHandle, (const char *)(buffer.const_data()), buffer.size());
+        if (status < 0) {
+            LOGE("ikcp_send error. %d", status);
+            break;
         }
     }
 

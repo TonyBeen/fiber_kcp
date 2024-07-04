@@ -28,7 +28,7 @@
 
 namespace eular {
 KcpServer::KcpServer() :
-    m_kcpBuffer(4 * MTU_SIZE),
+    m_kcpBuffer(2 * MTU_SIZE),
     m_connectTimeout(3000),
     m_disconnectTimeout(3000)
 {
@@ -116,17 +116,15 @@ void KcpServer::onReadEvent()
         m_kcpBuffer.resize(realReadSize);
         uint8_t *pHeaderBuf = m_kcpBuffer.data();
 
-        IUINT32 conv = ikcp_getconv(pHeaderBuf);
-        if (conv & KCP_FLAG != KCP_FLAG) {
-            LOGW("Received a buffer without KCP_FALG(%#x) %#x", KCP_FLAG, conv);
-            m_kcpBuffer.clear();
-            continue;
-        }
-
         // 解析协议
         protocol::KcpProtocol kcpProtoInput;
         protocol::DeserializeKcpProtocol(pHeaderBuf, &kcpProtoInput);
         LOGI("kcp conv = %#x", kcpProtoInput.kcp_conv);
+        if (kcpProtoInput.kcp_conv & KCP_FLAG != KCP_FLAG) {
+            LOGW("Received a buffer without KCP_FALG(%#x) %#x", KCP_FLAG, kcpProtoInput.kcp_conv);
+            m_kcpBuffer.clear();
+            continue;
+        }
 
         if (kcpProtoInput.kcp_conv == KCP_FLAG) {
             // 处理连接/断连请求
@@ -141,14 +139,16 @@ void KcpServer::onReadEvent()
                 onFINReceived(&kcpProtoInput, peerAddr);
                 break;
             case protocol::SYNCommand::RST:
+                onRSTReceived(&kcpProtoInput, peerAddr);
                 break;
             default:
                 break;
             }
         } else if (kcpProtoInput.kcp_conv & KCP_FLAG == KCP_FLAG) {
             // 处理KCP数据
-            onKcpDataReceived(pHeaderBuf, kcpProtoInput.kcp_conv, peerAddr);
+            onKcpDataReceived(m_kcpBuffer, kcpProtoInput.kcp_conv, peerAddr);
         }
+
         m_kcpBuffer.clear();
     } while (true);
     LOGW("%s <end>", __PRETTY_FUNCTION__);
@@ -158,32 +158,10 @@ void KcpServer::onSocketDataReceived(const uint8_t *pHeaderBuf, uint32_t bufSize
 {
 }
 
-// TODO UDP面向无连接, 使用recvfrom读取需要先将缓存读取完毕, 并按照addr进行划分.
-// 第一次recvfrom可能从A地址读, 下一次recvfrom可能从B地址读
-void KcpServer::onKcpDataReceived(const uint8_t *pHeaderBuf, uint32_t conv, sockaddr_in peerAddr)
+void KcpServer::onKcpDataReceived(const ByteBuffer &buffer, uint32_t conv, sockaddr_in peerAddr)
 {
     int32_t realReadSize = 0;
     socklen_t len = sizeof(sockaddr_in);
-    ByteBuffer kcpDataBuffer(MTU_SIZE);
-    kcpDataBuffer.append(pHeaderBuf, KCP_HEADER_SIZE);
-
-    pHeaderBuf += 20; // 偏移至KCP头部的len字段
-    uint32_t dataSize = 0;
-    protocol::DecodeUINT32(pHeaderBuf, &dataSize);
-    // NOTE KCP数据会被分片, 故数据不会超过 MTU_SIZE - KCP_HEADER_SIZE. 但是不排除杂数据正好满足KCP_FLAG且数据长度过大, 导致申请内存失败
-    LOG_ASSERT2(dataSize < 512 * 1024);
-    kcpDataBuffer.reserve(KCP_HEADER_SIZE + dataSize);
-    if (dataSize > 0) {
-        realReadSize = TEMP_FAILURE_RETRY(::recvfrom(m_updSocket, kcpDataBuffer.data() + KCP_HEADER_SIZE, kcpDataBuffer.capacity(), 0,
-            (sockaddr *)&peerAddr, &len));
-        if (realReadSize < 0) {
-            if (errno != EAGAIN) {
-                LOGE("recvfrom error: %d, %s", errno, strerror(errno));
-            }
-            return;
-        }
-    }
-    kcpDataBuffer.resize(KCP_HEADER_SIZE + realReadSize);
 
     // 如果从半连接队列找到此会话, 关闭定时器并添加到Map
     for (const auto &synIt : m_synConnectQueue) {
@@ -229,7 +207,7 @@ void KcpServer::onKcpDataReceived(const uint8_t *pHeaderBuf, uint32_t conv, sock
     // 处理KCP数据
     auto ctxIt = m_kcpContextMap.find(conv);
     if (ctxIt != m_kcpContextMap.end()) {
-        ctxIt->second->onRecv(kcpDataBuffer);
+        ctxIt->second->onRecv(buffer);
     }
 }
 

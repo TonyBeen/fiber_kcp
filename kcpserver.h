@@ -66,7 +66,7 @@ protected:
     void onSocketDataReceived(const uint8_t *pHeaderBuf, uint32_t bufSize, sockaddr_in peerAddr);
 
     // 会话数据
-    void onKcpDataReceived(const uint8_t *pHeaderBuf, uint32_t conv, sockaddr_in peerAddr);
+    void onKcpDataReceived(const ByteBuffer &buffer, uint32_t conv, sockaddr_in peerAddr);
 
     // 连接请求
     void onSYNReceived(protocol::KcpProtocol *pKcpProtocolReq, sockaddr_in peerAddr);
