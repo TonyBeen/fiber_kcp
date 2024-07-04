@@ -49,7 +49,7 @@ public:
 
 protected:
     // KCP发送接口
-    static int KcpOutput(const char *buf, int len, ikcpcb *kcp, void *user);
+    static int KcpOutput(const char *buf, int len, IKCPCB *kcp, void *user);
 
     // ikcp_update超时回调
     void onUpdateTimeout();

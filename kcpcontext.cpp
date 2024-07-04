@@ -76,7 +76,7 @@ uint16_t KcpContext::getPeerPort() const
     return m_peerPort;
 }
 
-int KcpContext::KcpOutput(const char *buf, int len, ikcpcb *kcp, void *user)
+int KcpContext::KcpOutput(const char *buf, int len, IKCPCB *kcp, void *user)
 {
     KcpContext *pKcpCtx = static_cast<KcpContext *>(user);
     if (buf && len > 0) {
