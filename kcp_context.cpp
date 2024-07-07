@@ -49,6 +49,11 @@ void KcpContext::installRecvEvent(ReadEventCB onRecvEvent)
     m_recvEvent = onRecvEvent;
 }
 
+bool KcpContext::send(const eular::ByteBuffer &buffer)
+{
+    return m_sendBufQueue.enqueue(buffer);
+}
+
 bool KcpContext::send(eular::ByteBuffer &&buffer)
 {
     return m_sendBufQueue.enqueue(std::forward<eular::ByteBuffer>(buffer));

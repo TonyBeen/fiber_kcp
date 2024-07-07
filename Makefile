@@ -32,19 +32,20 @@ OBJ_LIST += $(patsubst %.c, %.o, $(SRC_C_LIST))
 
 all :
 	make $(TARGET)
-
+	make test_kcp_server
+	make test_kcp_client
 
 $(TARGET) : $(OBJ_LIST)
 	$(CC) $^ -o $@ $(SO_LIB_LIST) -shared
 
 test : test_kcp_server test_kcp_client test_kcp_bench
 
-test_kcp_server : $(TEST_SRC_DIR)/test_kcp_server.cc $(SRC_CPP_LIST)
-	$(CC) $^ -o $@ $(SO_LIB_LIST)
-test_kcp_client : $(TEST_SRC_DIR)/test_kcp_client.cc $(SRC_CPP_LIST)
-	$(CC) $^ -o $@ $(SO_LIB_LIST)
-test_kcp_bench : $(TEST_SRC_DIR)/kcp_benchmark.cc $(SRC_CPP_LIST)
-	$(CC) $^ -o $@ $(SO_LIB_LIST)
+test_kcp_server : $(TEST_SRC_DIR)/test_kcp_server.cc $(SRC_CPP_LIST) $(SRC_C_LIST)
+	$(CC) $^ -o $@ $(INCLUDE_PATH) $(SO_LIB_LIST)
+test_kcp_client : $(TEST_SRC_DIR)/test_kcp_client.cc $(SRC_CPP_LIST) $(SRC_C_LIST)
+	$(CC) $^ -o $@ $(INCLUDE_PATH) $(SO_LIB_LIST)
+test_kcp_bench : $(TEST_SRC_DIR)/kcp_benchmark.cc $(SRC_CPP_LIST) $(SRC_C_LIST)
+	$(CC) $^ -o $@ $(INCLUDE_PATH) $(SO_LIB_LIST)
 
 %.o : %.cpp
 	$(CC) -c $^ -o $@ $(INCLUDE_PATH) $(CPPFLAGS) $(SOFLAGS)

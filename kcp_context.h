@@ -40,6 +40,7 @@ public:
     ~KcpContext();
 
     void installRecvEvent(ReadEventCB onRecvEvent);
+    bool send(const eular::ByteBuffer &buffer);
     bool send(eular::ByteBuffer &&buffer);
     void closeContext();
     void resetContext();

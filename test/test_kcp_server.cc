@@ -13,7 +13,6 @@
 
 #include "../kcp_manager.h"
 #include "../kcp_server.h"
-#include "../kcp_context.h"
 
 #define LOG_TAG "test-kcp-server"
 
@@ -51,14 +50,6 @@ int createSocket()
     return server_fd;
 }
 
-// void onReadEvent(Kcp *kcp, ByteBuffer &buffer, sockaddr_in addr)
-// {
-//     LOGI("%s() [%s](%zu) [%s:%d]", __func__, (char *)buffer.data(), buffer.size(), inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
-//     uint8_t buf[128] = {0};
-//     sprintf((char *)buf, "RECV %zuBytes", buffer.size());
-//     kcp->send(ByteBuffer(buf, strlen((char *)buf)));
-// }
-
 void signalCatch(int sig)
 {
     eular::CallStack stack;
@@ -73,7 +64,7 @@ int main(int argc, char **argv)
     signal(SIGSEGV, signalCatch);
     signal(SIGABRT, signalCatch);
 
-    eular::KcpManager::Ptr pManager(new eular::KcpManager("manager", true));
+    eular::KcpManager::Ptr pManager(new eular::KcpManager("kcp-server", true));
 
     eular::KcpServer::SP spServer = std::make_shared<eular::KcpServer>();
     assert(spServer->bind(SERVER_IP, SERVER_PORT));
@@ -85,6 +76,14 @@ int main(int argc, char **argv)
             spContex->getLocalHost().c_str(), spContex->getLocalPort(),
             data.c_str());
 
+        if (data.strcasecmp("PING")) {
+            eular::ByteBuffer bufResponse;
+            const char *response = "PONG";
+            bufResponse.set((const uint8_t *)response, strlen(response));
+            spContex->send(std::move(bufResponse));
+        } else {
+            spContex->send(buffer);
+        }
     };
 
     spServer->installConnectEvent([recvEventCB](eular::KcpContext::SP spContext) -> bool {
@@ -96,6 +95,8 @@ int main(int argc, char **argv)
     spServer->installDisconnectEvent([](eular::KcpContext::SP spContext) {
         LOGI("[%s:%d] disconnected", spContext->getPeerHost().c_str(), spContext->getPeerPort());
     });
+
+    pManager->addKcp(spServer);
 
     pManager->start();
     return 0;
