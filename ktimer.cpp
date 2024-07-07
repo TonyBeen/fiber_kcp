@@ -88,7 +88,7 @@ uint64_t KTimerManager::getNearTimeout()
 
 KTimer::SP KTimerManager::addTimer(uint64_t ms, KTimer::CallBack cb, uint32_t recycle)
 {
-    KTimer::SP timer = std::make_shared<KTimer>(ms, cb, recycle);
+    KTimer::SP timer(new KTimer(ms, cb, recycle));
     return addTimer(timer);
 }
 
@@ -112,7 +112,6 @@ void KTimerManager::delTimer(uint64_t timerId)
         eular::WRAutoLock<eular::RWMutex> writeLock(m_timerRWMutex);
         for (auto it = m_timerSet.begin(); it != m_timerSet.end(); ++it) {
             if ((*it)->getUniqueId() == timerId) {
-                // heap_remove()
                 heap_node_t *pNode = &(*it)->m_timerCtx.node;
                 if (pNode == m_timerHeap.root) {
                     isRootNode = true;

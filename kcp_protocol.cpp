@@ -16,6 +16,8 @@
 
 #include <utils/endian.hpp>
 
+#include "kcp_setting.h"
+
 #ifndef BYTE_ORDER
 static std::once_flag g_endianOnceFlag;
 
@@ -67,35 +69,35 @@ static inline uint32_t GetKcpFlag()
 
 static inline void InitKcpProtocol(KcpProtocol *pKcpProtocol)
 {
-    pKcpProtocol->kcp_conv = KCP_FLAG;
+    pKcpProtocol->kcp_flag = KCP_FLAG;
     pKcpProtocol->kcp_mode = KCPMode::Normal;
     pKcpProtocol->syn_command = SYNCommand::ACK;
     pKcpProtocol->sn = 0;
     pKcpProtocol->send_win_size = 0;
     pKcpProtocol->recv_win_size = 0;
-    pKcpProtocol->reserve = 0;
+    pKcpProtocol->kcp_conv = 0;
 }
 
 static inline void SerializeKcpProtocol(KcpProtocol *pKcpProtocol, void *pBuffer)
 {
 #ifndef BYTE_ORDER
     if (!IsLittleEngine()) {
-        pKcpProtocol->kcp_conv = htole32(pKcpProtocol->kcp_conv);
+        pKcpProtocol->kcp_flag = htole32(pKcpProtocol->kcp_flag);
         pKcpProtocol->kcp_mode = htole16(pKcpProtocol->kcp_mode);
         pKcpProtocol->syn_command = htole16(pKcpProtocol->syn_command);
         pKcpProtocol->sn = htole32(pKcpProtocol->sn);
         pKcpProtocol->send_win_size = htole32(pKcpProtocol->send_win_size);
         pKcpProtocol->recv_win_size = htole32(pKcpProtocol->recv_win_size);
-        pKcpProtocol->reserve = htole32(pKcpProtocol->reserve);
+        pKcpProtocol->kcp_conv = htole32(pKcpProtocol->kcp_conv);
     }
 #else
-    pKcpProtocol->kcp_conv = htole32(pKcpProtocol->kcp_conv);
+    pKcpProtocol->kcp_flag = htole32(pKcpProtocol->kcp_flag);
     pKcpProtocol->kcp_mode = htole16(pKcpProtocol->kcp_mode);
     pKcpProtocol->syn_command = htole16(pKcpProtocol->syn_command);
     pKcpProtocol->sn = htole32(pKcpProtocol->sn);
     pKcpProtocol->send_win_size = htole32(pKcpProtocol->send_win_size);
     pKcpProtocol->recv_win_size = htole32(pKcpProtocol->recv_win_size);
-    pKcpProtocol->reserve = htole32(pKcpProtocol->reserve);
+    pKcpProtocol->kcp_conv = htole32(pKcpProtocol->kcp_conv);
 #endif
 
     memcpy(pBuffer, pKcpProtocol, KCP_PROTOCOL_SIZE);
@@ -107,22 +109,22 @@ static inline void DeserializeKcpProtocol(const void *pBuffer, KcpProtocol *pKcp
 #ifndef BYTE_ORDER
     if (!IsLittleEngine())
     {
-        pKcpProtocol->kcp_conv = le32toh(pTemp->kcp_conv);
+        pKcpProtocol->kcp_flag = le32toh(pTemp->kcp_flag);
         pKcpProtocol->kcp_mode = le16toh(pTemp->kcp_mode);
         pKcpProtocol->syn_command = le16toh(pTemp->syn_command);
         pKcpProtocol->sn = le32toh(pTemp->sn);
         pKcpProtocol->send_win_size = le32toh(pTemp->send_win_size);
         pKcpProtocol->recv_win_size = le32toh(pTemp->recv_win_size);
-        pKcpProtocol->reserve = le32toh(pTemp->reserve);
+        pKcpProtocol->kcp_conv = le32toh(pTemp->kcp_conv);
     }
 #else
-    pKcpProtocol->kcp_conv = le32toh(pTemp->kcp_conv);
+    pKcpProtocol->kcp_flag = le32toh(pTemp->kcp_flag);
     pKcpProtocol->kcp_mode = le16toh(pTemp->kcp_mode);
     pKcpProtocol->syn_command = le16toh(pTemp->syn_command);
     pKcpProtocol->sn = le32toh(pTemp->sn);
     pKcpProtocol->send_win_size = le32toh(pTemp->send_win_size);
     pKcpProtocol->recv_win_size = le32toh(pTemp->recv_win_size);
-    pKcpProtocol->reserve = le32toh(pTemp->reserve);
+    pKcpProtocol->kcp_conv = le32toh(pTemp->kcp_conv);
 #endif
 }
 

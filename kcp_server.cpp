@@ -5,8 +5,7 @@
     > Created Time: Fri 07 Jun 2024 06:00:37 PM CST
  ************************************************************************/
 
-#define _GNU_SOURCE
-#include "kcpserver.h"
+#include "kcp_server.h"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -18,21 +17,16 @@
 #include <log/log.h>
 
 #include "ikcp.h"
-#include "kcpmanager.h"
+#include "kcp_manager.h"
 #include "kcp_utils.h"
 
 #define LOG_TAG "KcpServer"
 
-#define MIN_TIMEOUT 100
-#define MAX_TIMEOUT 5000
-
 namespace eular {
 KcpServer::KcpServer() :
-    m_kcpBuffer(2 * MTU_SIZE),
-    m_connectTimeout(3000),
-    m_disconnectTimeout(3000)
+    m_kcpBuffer(2 * MTU_SIZE)
 {
-    m_kcpConvBitmap.reserve(KCP_MAX_CONV / BITS_PEER_BYTE);
+    m_kcpConvBitmap.reserve(KCP_MAX_CONV);
     m_kcpConvBitmap.set(0, true);
 }
 
@@ -50,40 +44,13 @@ void KcpServer::installDisconnectEvent(DisconnectEventCB disconnectEventCB) noex
     m_disconnectEventCB = disconnectEventCB;
 }
 
-void KcpServer::setConnectTimeout(uint32_t timeout) noexcept
-{
-    if (timeout < MIN_TIMEOUT) {
-        timeout = MIN_TIMEOUT;
-    } else if (timeout > MAX_TIMEOUT) {
-        timeout = MAX_TIMEOUT;
-    }
-
-    m_connectTimeout = timeout;
-}
-
-void KcpServer::setDisconnectTimeout(uint32_t timeout) noexcept
-{
-    if (timeout < MIN_TIMEOUT) {
-        timeout = MIN_TIMEOUT;
-    } else if (timeout > MAX_TIMEOUT) {
-        timeout = MAX_TIMEOUT;
-    }
-
-    m_disconnectTimeout = timeout;
-}
-
 void KcpServer::onReadEvent()
 {
-    LOGW("%s <begin>", __PRETTY_FUNCTION__);
+    LOGD("%s <begin>", __PRETTY_FUNCTION__);
     static_assert(KCP_HEADER_SIZE == protocol::KCP_PROTOCOL_SIZE);
-
-    uint8_t headerBuffer[KCP_HEADER_SIZE] = {0};
 
     sockaddr_in peerAddr;
     socklen_t len = sizeof(sockaddr_in);
-    bool hasError = false;
-
-    uint32_t kcpFlag = 0;
 
     // uint32_t canReadSize = 0;
     // ioctl(m_updSocket, FIONREAD, &canReadSize);
@@ -92,7 +59,7 @@ void KcpServer::onReadEvent()
     m_kcpBuffer.clear();
     do {
 #ifdef _DEBUG
-        ElapsedTime stopwatch(ElapsedTimeType::MICROSECOND);
+        ElapsedTime stopwatch(ElapsedTimeType::NANOSECOND);
         stopwatch.start();
 #endif
         int32_t realReadSize = TEMP_FAILURE_RETRY(::recvfrom(m_updSocket, m_kcpBuffer.data(), m_kcpBuffer.capacity(), 0,
@@ -120,7 +87,7 @@ void KcpServer::onReadEvent()
         protocol::KcpProtocol kcpProtoInput;
         protocol::DeserializeKcpProtocol(pHeaderBuf, &kcpProtoInput);
         LOGI("kcp conv = %#x", kcpProtoInput.kcp_conv);
-        if (kcpProtoInput.kcp_conv & KCP_FLAG != KCP_FLAG) {
+        if ((kcpProtoInput.kcp_conv & KCP_FLAG) != KCP_FLAG) {
             LOGW("Received a buffer without KCP_FALG(%#x) %#x", KCP_FLAG, kcpProtoInput.kcp_conv);
             m_kcpBuffer.clear();
             continue;
@@ -144,45 +111,25 @@ void KcpServer::onReadEvent()
             default:
                 break;
             }
-        } else if (kcpProtoInput.kcp_conv & KCP_FLAG == KCP_FLAG) {
+        } else if ((kcpProtoInput.kcp_conv & KCP_FLAG) == KCP_FLAG) {
             // 处理KCP数据
             onKcpDataReceived(m_kcpBuffer, kcpProtoInput.kcp_conv, peerAddr);
         }
 
         m_kcpBuffer.clear();
     } while (true);
-    LOGW("%s <end>", __PRETTY_FUNCTION__);
-}
-
-void KcpServer::onSocketDataReceived(const uint8_t *pHeaderBuf, uint32_t bufSize, sockaddr_in peerAddr)
-{
+    LOGD("%s <end>", __PRETTY_FUNCTION__);
 }
 
 void KcpServer::onKcpDataReceived(const ByteBuffer &buffer, uint32_t conv, sockaddr_in peerAddr)
 {
-    int32_t realReadSize = 0;
-    socklen_t len = sizeof(sockaddr_in);
-
     // 如果从半连接队列找到此会话, 关闭定时器并添加到Map
     for (const auto &synIt : m_synConnectQueue) {
         if (synIt.conv == conv) {
             KcpManager::GetCurrentKcpManager()->delTimer(synIt.timerId);
             KcpContext::SP spContext = std::make_shared<KcpContext>();
             KcpSetting setting;
-            switch (synIt.syn_protocol.kcp_mode) {
-            case protocol::KCPMode::Fast:
-                kcp_fast_mode(&setting);
-                break;
-            case protocol::KCPMode::Fast2:
-                kcp_fast2_mode(&setting);
-                break;
-            case protocol::KCPMode::Fast3:
-                kcp_fast3_mode(&setting);
-                break;
-            default:
-                kcp_normal_mode(&setting);
-                break;
-            }
+            init_kcp(synIt.syn_protocol.kcp_mode, &setting);
 
             setting.fd = m_updSocket;
             setting.conv = conv;
@@ -192,7 +139,8 @@ void KcpServer::onKcpDataReceived(const ByteBuffer &buffer, uint32_t conv, socka
             spContext->setSetting(setting);
             spContext->m_localHost = m_localHost;
             spContext->m_localPort = m_localPort;
-            spContext->m_closeEvent = std::bind(&KcpServer::onKcpContextClosed, this, std::placeholders::_1);
+            spContext->m_closeEvent = std::bind(&KcpServer::onKcpContextClosed, this,
+                                                std::placeholders::_1, std::placeholders::_2);
 
             if (m_connectEventCB && m_connectEventCB(spContext)) {
                 auto spTimer = KcpManager::GetCurrentKcpManager()->addTimer(setting.interval,
@@ -230,8 +178,8 @@ void KcpServer::onSYNReceived(protocol::KcpProtocol *pKcpProtocolReq, sockaddr_i
     protocol::InitKcpProtocol(&kcpProtoOutput);
     uint8_t kcpProtoBuffer[protocol::KCP_PROTOCOL_SIZE] = {0};
 
-    if (communicationNo == 0) {
-        kcpProtoOutput.kcp_conv = KCP_FLAG;
+    if (communicationNo == KCP_FLAG) {
+        kcpProtoOutput.kcp_flag = KCP_FLAG;
         kcpProtoOutput.kcp_mode = pKcpProtocolReq->kcp_mode;
         kcpProtoOutput.syn_command = protocol::SYNCommand::FIN;
         kcpProtoOutput.sn = pKcpProtocolReq->sn;
@@ -248,6 +196,7 @@ void KcpServer::onSYNReceived(protocol::KcpProtocol *pKcpProtocolReq, sockaddr_i
 
     LOGI("found conv = %#x", communicationNo);
 
+    kcpProtoOutput.kcp_flag = KCP_FLAG;
     kcpProtoOutput.kcp_conv = communicationNo;
     kcpProtoOutput.kcp_mode = pKcpProtocolReq->kcp_mode;
     kcpProtoOutput.syn_command = protocol::SYNCommand::ACK;
@@ -279,14 +228,13 @@ void KcpServer::onSYNReceived(protocol::KcpProtocol *pKcpProtocolReq, sockaddr_i
 void KcpServer::onACKReceived(protocol::KcpProtocol *pKcpProtocolReq, sockaddr_in peerAddr)
 {
     LOGD("%s ACK Received from %s", __PRETTY_FUNCTION__, utils::Address2String((sockaddr *)&peerAddr));
-    KcpFINInfo finInfo = {
-        .conv = 0
-    };
+    KcpFINInfo finInfo;
+    finInfo.conv = 0;
 
     // NOTE FIN/ACK传递的都是
     for (auto it = m_finDisconnectQueue.begin(); it != m_finDisconnectQueue.end(); ++it) {
         if (it->sn == pKcpProtocolReq->sn &&
-            it->peer_addr.sin_addr.s_addr == peerAddr.sin_addr.s_addr && 
+            it->peer_addr.sin_addr.s_addr == peerAddr.sin_addr.s_addr &&
             it->peer_addr.sin_port == peerAddr.sin_port) {
             finInfo = *it;
             m_finDisconnectQueue.erase(it);
@@ -309,12 +257,12 @@ void KcpServer::onACKReceived(protocol::KcpProtocol *pKcpProtocolReq, sockaddr_i
 void KcpServer::onFINReceived(protocol::KcpProtocol *pKcpProtocolReq, sockaddr_in peerAddr)
 {
     LOGD("%s FIN Received from %s", __PRETTY_FUNCTION__, utils::Address2String((sockaddr *)&peerAddr));
-    uint32_t conv = pKcpProtocolReq->reserve;
+    uint32_t conv = pKcpProtocolReq->kcp_conv;
     protocol::KcpProtocol kcpProtoOutput;
     protocol::InitKcpProtocol(&kcpProtoOutput);
     uint8_t kcpProtoBuffer[protocol::KCP_PROTOCOL_SIZE] = {0};
 
-    kcpProtoOutput.kcp_conv = conv;
+    kcpProtoOutput.kcp_flag = KCP_FLAG;
     kcpProtoOutput.kcp_mode = pKcpProtocolReq->kcp_mode;
     kcpProtoOutput.syn_command = protocol::SYNCommand::ACK;
     kcpProtoOutput.sn = pKcpProtocolReq->sn;
@@ -342,13 +290,10 @@ void KcpServer::onFINReceived(protocol::KcpProtocol *pKcpProtocolReq, sockaddr_i
 void KcpServer::onRSTReceived(protocol::KcpProtocol *pKcpProtocolReq, sockaddr_in peerAddr)
 {
     LOGD("%s RST Received from %s", __PRETTY_FUNCTION__, utils::Address2String((sockaddr *)&peerAddr));
-    uint32_t conv = pKcpProtocolReq->reserve;
+    uint32_t conv = pKcpProtocolReq->kcp_conv;
     auto it = m_kcpContextMap.find(conv);
     if (it != m_kcpContextMap.end()) {
         KcpManager::GetCurrentKcpManager()->delTimer(it->second->m_timerId);
-
-        // 主动调用更新数据
-        it->second->onUpdateTimeout();
 
         if (m_disconnectEventCB) {
             m_disconnectEventCB(it->second);
@@ -359,12 +304,22 @@ void KcpServer::onRSTReceived(protocol::KcpProtocol *pKcpProtocolReq, sockaddr_i
 
 void KcpServer::onConnectTimeout(uint32_t conv)
 {
-    // 超时将其从半连接队列移除
+    // 超时将其从半连接队列移除并发送RST命令
     for (auto it = m_synConnectQueue.begin(); it != m_synConnectQueue.end(); ++it) {
         if (it->conv == conv) {
             // 将会话号加入备选
             uint32_t index = conv & ~KCP_MASK;
             m_kcpConvBitmap.set(index, false);
+
+            protocol::KcpProtocol kcpProtoOutput;
+            protocol::InitKcpProtocol(&kcpProtoOutput);
+            kcpProtoOutput.syn_command = protocol::SYNCommand::RST;
+            kcpProtoOutput.kcp_conv = it->conv;
+
+            uint8_t bufProtoOutput[KCP_HEADER_SIZE] = {0};
+            protocol::SerializeKcpProtocol(&kcpProtoOutput, bufProtoOutput);
+            ::sendto(m_updSocket, bufProtoOutput, KCP_HEADER_SIZE, 0,
+                    (sockaddr *)&(it->peer_addr), (socklen_t)sizeof(sockaddr_in));
 
             m_synConnectQueue.erase(it);
         }
@@ -381,7 +336,7 @@ void KcpServer::onDisconnectTimeout(uint32_t conv)
     }
 }
 
-void KcpServer::onKcpContextClosed(KcpContext::SP spContext)
+void KcpServer::onKcpContextClosed(KcpContext::SP spContext, bool isClose)
 {
     // 主动关闭Context需要发送FIN
     protocol::KcpProtocol kcpProtoOutput;
@@ -389,27 +344,50 @@ void KcpServer::onKcpContextClosed(KcpContext::SP spContext)
 
     // 以时间戳作为序列号
     uint32_t timeS = static_cast<uint32_t>(time(NULL));
-
-    kcpProtoOutput.kcp_conv = KCP_FLAG;
-    kcpProtoOutput.syn_command = protocol::SYNCommand::FIN;
-    kcpProtoOutput.sn = timeS;
     uint8_t buffer[protocol::KCP_PROTOCOL_SIZE] = {0};
-    protocol::SerializeKcpProtocol(&kcpProtoOutput, buffer);
 
-    ::sendto(m_updSocket, buffer, protocol::KCP_PROTOCOL_SIZE, 0,
-        (sockaddr *)&spContext->m_setting.remote_addr, sizeof(sockaddr_in));
+    if (isClose) {
+        kcpProtoOutput.kcp_flag = KCP_FLAG;
+        kcpProtoOutput.syn_command = protocol::SYNCommand::FIN;
+        kcpProtoOutput.sn = timeS;
+        kcpProtoOutput.kcp_conv = spContext->m_setting.conv;
 
-    auto spTimer = KcpManager::GetCurrentKcpManager()->addTimer(m_disconnectTimeout,
-        std::bind(&KcpServer::onDisconnectTimeout, this, spContext->m_setting.conv));
-    KcpFINInfo finInfo = {
-        .timeout = m_disconnectTimeout,
-        .conv = spContext->m_setting.conv,
-        .timerId = spTimer->getUniqueId(),
-        .sn = timeS,
-        .peer_addr = spContext->m_setting.remote_addr,
-    };
+        protocol::SerializeKcpProtocol(&kcpProtoOutput, buffer);
 
-    m_finDisconnectQueue.push_back(finInfo);
+        ::sendto(m_updSocket, buffer, protocol::KCP_PROTOCOL_SIZE, 0,
+            (sockaddr *)&spContext->m_setting.remote_addr, sizeof(sockaddr_in));
+
+        auto spTimer = KcpManager::GetCurrentKcpManager()->addTimer(m_disconnectTimeout,
+            std::bind(&KcpServer::onDisconnectTimeout, this, spContext->m_setting.conv));
+        KcpFINInfo finInfo = {
+            .timeout = m_disconnectTimeout,
+            .conv = spContext->m_setting.conv,
+            .timerId = spTimer->getUniqueId(),
+            .sn = timeS,
+            .peer_addr = spContext->m_setting.remote_addr,
+        };
+
+        m_finDisconnectQueue.push_back(finInfo);
+    } else {
+        // RST
+        kcpProtoOutput.kcp_flag = KCP_FLAG;
+        kcpProtoOutput.syn_command = protocol::SYNCommand::RST;
+        kcpProtoOutput.sn = timeS;
+        kcpProtoOutput.kcp_conv = spContext->m_setting.conv;
+        protocol::SerializeKcpProtocol(&kcpProtoOutput, buffer);
+
+        ::sendto(m_updSocket, buffer, protocol::KCP_PROTOCOL_SIZE, 0,
+            (sockaddr *)&spContext->m_setting.remote_addr, sizeof(sockaddr_in));
+
+        auto it = m_kcpContextMap.find(kcpProtoOutput.kcp_conv);
+        if (it != m_kcpContextMap.end()) {
+            KcpManager::GetCurrentKcpManager()->delTimer(it->second->m_timerId);
+            if (m_disconnectEventCB) {
+                m_disconnectEventCB(it->second);
+            }
+            m_kcpContextMap.erase(it);
+        }
+    }
 }
 
 } // namespace eular

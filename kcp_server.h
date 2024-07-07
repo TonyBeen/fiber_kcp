@@ -13,12 +13,11 @@
 #include <utils/bitmap.h>
 
 #include "kcp.h"
-#include "kcpcontext.h"
+#include "kcp_context.h"
 #include "kcp_protocol.h"
 
 namespace eular {
 using ConnectEventCB = std::function<bool(std::shared_ptr<KcpContext>)>;
-using DisconnectEventCB = std::function<void(std::shared_ptr<KcpContext>)>;
 
 class KcpServer : public Kcp
 {
@@ -40,30 +39,13 @@ public:
     /**
      * @brief 注册断连事件(非线程安全)
      * 
-     * @param disconnectEventCB 
+     * @param disconnectEventCB 断连回调
      */
     void installDisconnectEvent(DisconnectEventCB disconnectEventCB) noexcept;
-
-    /**
-     * @brief 设置连接超时, 默认3000(ms)
-     * 
-     * @param timeout 超时时间(min:100,max:5000)
-     */
-    void setConnectTimeout(uint32_t timeout) noexcept;
-
-    /**
-     * @brief 设置连接超时, 默认3000(ms)
-     * 
-     * @param timeout 超时时间(min:100,max:5000)
-     */
-    void setDisconnectTimeout(uint32_t timeout) noexcept;
 
 protected:
     // 读事件
     void onReadEvent() override;
-
-    // 处理UDP数据
-    void onSocketDataReceived(const uint8_t *pHeaderBuf, uint32_t bufSize, sockaddr_in peerAddr);
 
     // 会话数据
     void onKcpDataReceived(const ByteBuffer &buffer, uint32_t conv, sockaddr_in peerAddr);
@@ -87,7 +69,7 @@ protected:
     void onDisconnectTimeout(uint32_t conv);
 
     // 主动关闭context回调
-    void onKcpContextClosed(KcpContext::SP spContext);
+    void onKcpContextClosed(KcpContext::SP spContext, bool isClose);
 
     // 半连接
     struct KcpSYNInfo {
@@ -98,20 +80,9 @@ protected:
         protocol::KcpProtocol syn_protocol;
     };
 
-    // 断连请求
-    struct KcpFINInfo {
-        uint32_t    timeout;    // 断连超时
-        uint32_t    conv;       // 会话号
-        uint64_t    timerId;    // 定时器Id
-        uint32_t    sn;         // 序列号
-        sockaddr_in peer_addr;  // 对端IP和端口
-    };
-
 private:
     BitMap                              m_kcpConvBitmap;        // 会话号位图
     ByteBuffer                          m_kcpBuffer;            // 存储KCP数据
-    uint32_t                            m_connectTimeout;       // 连接超时
-    uint32_t                            m_disconnectTimeout;    // 断连超时
     ConnectEventCB                      m_connectEventCB;       // 连接回调
     DisconnectEventCB                   m_disconnectEventCB;    // 断连回调
     std::list<KcpSYNInfo>               m_synConnectQueue;      // 半连接队列

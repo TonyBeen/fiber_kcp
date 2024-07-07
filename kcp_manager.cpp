@@ -5,7 +5,7 @@
     > Created Time: Mon 04 Jul 2022 02:44:42 PM CST
  ************************************************************************/
 
-#include "kcpmanager.h"
+#include "kcp_manager.h"
 
 #include <errno.h>
 #include <string.h>
@@ -81,10 +81,12 @@ bool KcpManager::addKcp(Kcp::SP kcp)
     {
         AutoLock<Mutex> lock(m_ctxMutex);
         ctx = m_contextMap[sockFd];
+        if (ctx == nullptr) {
+            ctx = std::make_shared<Context>();
+            m_contextMap[sockFd] = ctx;
+        }
     }
-    if (ctx == nullptr) {
-        return false;
-    }
+
     if (ctx->read != nullptr || ctx->write != nullptr) { // 说明已存在了
         return true;
     }
@@ -92,7 +94,10 @@ bool KcpManager::addKcp(Kcp::SP kcp)
     kcp->m_pKcpManager = this;
 
     int32_t flag = fcntl(sockFd, F_GETFL);
-    fcntl(sockFd, F_SETFL, flag | O_NONBLOCK);
+    if (!(flag & O_NONBLOCK)) {
+        fcntl(sockFd, F_SETFL, flag | O_NONBLOCK);
+    }
+
     ctx->events = READ;
     ctx->socketFd = sockFd;
     ctx->read = std::bind(&Kcp::onReadEvent, kcp.get());
@@ -101,6 +106,7 @@ bool KcpManager::addKcp(Kcp::SP kcp)
     ev.events = EPOLLET | EPOLLIN;
     int32_t rt = epoll_ctl(m_epollFd, EPOLL_CTL_ADD, sockFd, &ev);
     if (rt < 0) {
+        LOGE("epoll_ctl error: [%d:%s]", errno, strerror(errno));
         ctx->resetContext(READ);
     }
     return rt == 0;
@@ -118,6 +124,7 @@ bool KcpManager::delKcp(Kcp::SP kcp)
         LOGE("epoll_ctl error. [%d,%s]", errno, strerror(errno));
         return false;
     }
+
     Context::SP ctx;
     {
         AutoLock<Mutex> lock(m_ctxMutex);
@@ -137,7 +144,6 @@ void KcpManager::start()
     m_keepRun = true;
 
     if (m_userCaller) {
-        g_pKcpManager = this;
         threadloop();
     } else {
         m_thread = std::make_shared<Thread>(std::bind(&KcpManager::threadloop, this));

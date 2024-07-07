@@ -19,11 +19,16 @@
 
 #define LOG_TAG "Kcp"
 
+#define MIN_TIMEOUT 100
+#define MAX_TIMEOUT 5000
+
 namespace eular {
 Kcp::Kcp() :
     m_pKcpManager(nullptr),
     m_updSocket(-1),
-    m_autoClose(false)
+    m_autoClose(false),
+    m_connectTimeout(3000),
+    m_disconnectTimeout(3000)
 {
 }
 
@@ -78,12 +83,34 @@ bool Kcp::bind(const eular::String8 &ip, uint16_t port) noexcept
     return true;
 }
 
-void Kcp::close()
+void Kcp::close() noexcept
 {
     if (m_updSocket > 0) {
         ::close(m_updSocket);
         m_updSocket = -1;
     }
+}
+
+void Kcp::setConnectTimeout(uint32_t timeout) noexcept
+{
+    if (timeout < MIN_TIMEOUT) {
+        timeout = MIN_TIMEOUT;
+    } else if (timeout > MAX_TIMEOUT) {
+        timeout = MAX_TIMEOUT;
+    }
+
+    m_connectTimeout = timeout;
+}
+
+void Kcp::setDisconnectTimeout(uint32_t timeout) noexcept
+{
+    if (timeout < MIN_TIMEOUT) {
+        timeout = MIN_TIMEOUT;
+    } else if (timeout > MAX_TIMEOUT) {
+        timeout = MAX_TIMEOUT;
+    }
+
+    m_disconnectTimeout = timeout;
 }
 
 const String8& Kcp::getLocalHost() const

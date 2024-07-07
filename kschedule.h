@@ -38,7 +38,7 @@ public:
     void schedule(FiberOrCb fc)
     {
         {
-            AutoLock lock(m_queueMutex);
+            AutoLock<Mutex> lock(m_queueMutex);
             scheduleNoLock(fc);
         }
         tickle();
@@ -47,9 +47,9 @@ public:
     template<class Iterator>
     void schedule(Iterator begin, Iterator end)
     {
-        AutoLock lock(m_queueMutex);
+        AutoLock<Mutex> lock(m_queueMutex);
         while (begin != end) {
-            scheduleNoLock(begin);
+            scheduleNoLock(*begin);
             ++begin;
         }
     }

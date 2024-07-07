@@ -14,7 +14,9 @@ struct sockaddr;
 
 namespace utils {
 
-static const char *Address2String(const sockaddr *addr);
+const char *Address2String(const sockaddr *addr);
+
+bool SockaddrEqual(const sockaddr *left, const sockaddr *right);
 
 } // namespace utils
 

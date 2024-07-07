@@ -5,7 +5,7 @@
     > Created Time: Thu 06 Jun 2024 10:41:39 AM CST
  ************************************************************************/
 
-#include "kcpcontext.h"
+#include "kcp_context.h"
 #include <log/log.h>
 
 #include "ikcp.h"
@@ -13,10 +13,13 @@
 
 #define LOG_TAG "KcpContext"
 
+#define CACHE_SIZE  8 * 1024
+
 namespace eular {
 KcpContext::KcpContext() :
     m_timerId(0),
-    m_kcpHandle(nullptr)
+    m_kcpHandle(nullptr),
+    m_recvBuffer(CACHE_SIZE)
 {
 }
 
@@ -53,7 +56,22 @@ bool KcpContext::send(eular::ByteBuffer &&buffer)
 
 void KcpContext::closeContext()
 {
-    m_closeEvent(shared_from_this());
+    if (m_closeEvent) {
+        m_closeEvent(shared_from_this(), true);
+        m_closeEvent = nullptr;
+    }
+}
+
+void KcpContext::resetContext()
+{
+    if (m_setting.conv > 0) {
+        if (m_closeEvent) {
+            m_closeEvent(shared_from_this(), false);
+            m_closeEvent = nullptr;
+        }
+
+        m_setting.conv = 0;
+    }
 }
 
 const String8& KcpContext::getLocalHost() const
@@ -103,7 +121,6 @@ void KcpContext::onUpdateTimeout()
 
 void KcpContext::onRecv(const eular::ByteBuffer &inputBuffer)
 {
-    ByteBuffer recvBuffer;
     int32_t errorCode = ikcp_input(m_kcpHandle, (const char *)(inputBuffer.const_data()), inputBuffer.size());
     if (errorCode < 0) {
         LOGE("ikcp_input error. %d", errorCode);
@@ -115,14 +132,14 @@ void KcpContext::onRecv(const eular::ByteBuffer &inputBuffer)
         return;
     }
 
-    recvBuffer.reserve(peekSize);
-    recvBuffer.clear();
-    int32_t nrecv = ikcp_recv(m_kcpHandle, (char *)recvBuffer.data(), peekSize);
+    m_recvBuffer.reserve(peekSize);
+    m_recvBuffer.clear();
+    int32_t nrecv = ikcp_recv(m_kcpHandle, (char *)m_recvBuffer.data(), peekSize);
     LOGD("ikcp_recv size %d", nrecv);
     if (nrecv > 0) {
-        recvBuffer.resize(nrecv);
+        m_recvBuffer.resize(nrecv);
         if (m_recvEvent) {
-            m_recvEvent(shared_from_this(), recvBuffer);
+            m_recvEvent(shared_from_this(), m_recvBuffer);
         }
     }
 }

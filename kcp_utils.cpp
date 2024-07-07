@@ -8,6 +8,7 @@
 #include "kcp_utils.h"
 
 #include <stdio.h>
+#include <string.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -33,8 +34,36 @@ const char *Address2String(const sockaddr *addr)
 
         snprintf(formatAddr, INET_LEN, "[%s]:%d", ipv6Host, ntohs(ipv6Addr->sin6_port));
     }
-    
+
     return formatAddr;
+}
+
+bool SockaddrEqual(const sockaddr *left, const sockaddr *right)
+{
+    if (left->sa_family != right->sa_family) {
+        return false;
+    }
+
+    switch (left->sa_family) {
+    case AF_INET:
+    {
+        const sockaddr_in *pLeft = (const sockaddr_in *)left;
+        const sockaddr_in *pRight = (const sockaddr_in *)right;
+        return (pLeft->sin_addr.s_addr == pRight->sin_addr.s_addr) && (pLeft->sin_port == pRight->sin_port);
+    }
+    case AF_INET6:
+    {
+        const sockaddr_in6 *pLeft = (const sockaddr_in6 *)left;
+        const sockaddr_in6 *pRight = (const sockaddr_in6 *)right;
+
+        bool hostEqual = 0 == memcmp(&pLeft->sin6_addr, &pRight->sin6_addr, sizeof(struct in6_addr));
+        return hostEqual && pLeft->sin6_port == pRight->sin6_port;
+    }
+    default:
+        break;
+    }
+
+    return false;
 }
 
 } // namespace utils
