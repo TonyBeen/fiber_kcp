@@ -1,5 +1,5 @@
 CC = g++
-CPPFLAGS = -Wall -Wno-unused-function -O2 -std=c++11 -g
+CPPFLAGS = -Wall -Wno-unused-function -O0 -m64 -std=c++11 -g
 SOFLAGS = -fPIC
 
 TARGET = libkcp.so
@@ -41,11 +41,11 @@ $(TARGET) : $(OBJ_LIST)
 test : test_kcp_server test_kcp_client test_kcp_bench
 
 test_kcp_server : $(TEST_SRC_DIR)/test_kcp_server.cc $(SRC_CPP_LIST) $(SRC_C_LIST)
-	$(CC) $^ -o $@ $(INCLUDE_PATH) $(SO_LIB_LIST)
+	$(CC) $^ -o $@ $(INCLUDE_PATH) $(CPPFLAGS) $(SO_LIB_LIST)
 test_kcp_client : $(TEST_SRC_DIR)/test_kcp_client.cc $(SRC_CPP_LIST) $(SRC_C_LIST)
-	$(CC) $^ -o $@ $(INCLUDE_PATH) $(SO_LIB_LIST)
+	$(CC) $^ -o $@ $(INCLUDE_PATH) $(CPPFLAGS) $(SO_LIB_LIST)
 test_kcp_bench : $(TEST_SRC_DIR)/kcp_benchmark.cc $(SRC_CPP_LIST) $(SRC_C_LIST)
-	$(CC) $^ -o $@ $(INCLUDE_PATH) $(SO_LIB_LIST)
+	$(CC) $^ -o $@ $(INCLUDE_PATH) $(CPPFLAGS) $(SO_LIB_LIST)
 
 %.o : %.cpp
 	$(CC) -c $^ -o $@ $(INCLUDE_PATH) $(CPPFLAGS) $(SOFLAGS)

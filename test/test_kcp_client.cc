@@ -19,7 +19,7 @@
 
 using namespace std;
 
-#define SERVER_IP   "0.0.0.0"
+#define SERVER_IP   "49.232.146.220"
 #define SERVER_PORT 12000
 
 void signalCatch(int sig)
@@ -36,7 +36,8 @@ void signalCatch(int sig)
 int main(int argc, char **argv)
 {
     signal(SIGSEGV, signalCatch);
-    
+    signal(SIGABRT, signalCatch);
+
     eular::KcpManager::Ptr pManager(new eular::KcpManager("kcp-client", false));
 
     eular::KcpClient::SP spClient = std::make_shared<eular::KcpClient>();
@@ -63,7 +64,6 @@ int main(int argc, char **argv)
     pManager->start();
 
     uint8_t buf[4] = {'P', 'I', 'N', 'G' };
-    uint16_t times = 0;
     while (true) {
         spClientContext->send(eular::ByteBuffer(buf, sizeof(buf)));
         msleep(50);
