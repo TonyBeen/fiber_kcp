@@ -79,7 +79,7 @@ bool Kcp::bind(const eular::String8 &ip, uint16_t port) noexcept
         }
     }
 
-    LOGI("Successfully bound to [%s:%u]", ip.c_str(), port);
+    LOGI("Successfully bound to [%s:%u]", m_localHost.c_str(), m_localPort);
     return true;
 }
 

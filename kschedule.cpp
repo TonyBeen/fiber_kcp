@@ -30,7 +30,7 @@ KScheduler::KScheduler(const eular::String8 &name, bool userCaller) :
         m_rootFiber = std::make_shared<KFiber>(std::bind(&KScheduler::processEvnet, this));
         Thread::SetThreadName(name);
 
-        LOGD("root tid id %ld", gettid());
+        LOGD("root tid %ld", gettid());
         gMainFiber = m_rootFiber.get();
         m_rootThread = gettid();
     } else {
