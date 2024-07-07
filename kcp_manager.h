@@ -22,6 +22,9 @@ namespace eular {
 class KcpManager : public KTimerManager, public KScheduler
 {
 public:
+    using SP = std::shared_ptr<KcpManager>;
+    using Ptr = std::unique_ptr<KcpManager>;
+
     KcpManager(const String8 &name, bool userCaller);
     virtual ~KcpManager();
 

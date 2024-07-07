@@ -72,7 +72,7 @@ Thread::~Thread()
 
 void Thread::SetThreadName(eular::String8 name)
 {
-    if (name.isEmpty()) {
+    if (name.empty()) {
         return;
     }
 

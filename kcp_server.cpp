@@ -44,6 +44,16 @@ void KcpServer::installDisconnectEvent(DisconnectEventCB disconnectEventCB) noex
     m_disconnectEventCB = disconnectEventCB;
 }
 
+void KcpServer::resetAll() noexcept
+{
+    auto it = m_kcpContextMap.begin();
+    do {
+        it->second->resetContext();
+        // NOTE resetContext回调会调用m_kcpContextMap.erase()函数, 故需要更新当前迭代器
+        it = m_kcpContextMap.begin();
+    } while (it != m_kcpContextMap.end());
+}
+
 void KcpServer::onReadEvent()
 {
     LOGD("%s <begin>", __PRETTY_FUNCTION__);

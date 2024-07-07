@@ -5,18 +5,21 @@
     > Created Time: Thu 14 Jul 2022 09:34:05 AM CST
  ************************************************************************/
 
-#include "../kcpmanager.h"
 #include <assert.h>
 #include <iostream>
 #include <signal.h>
 #include <log/log.h>
 #include <log/callstack.h>
 
+#include "../kcp_manager.h"
+#include "../kcp_server.h"
+#include "../kcp_context.h"
+
 #define LOG_TAG "test-kcp-server"
 
 using namespace std;
 
-#define SERVER_IP   "10.0.24.17"
+#define SERVER_IP   "0.0.0.0"
 #define SERVER_PORT 12000
 
 int createSocket()
@@ -48,19 +51,19 @@ int createSocket()
     return server_fd;
 }
 
-void onReadEvent(Kcp *kcp, ByteBuffer &buffer, sockaddr_in addr)
-{
-    LOGI("%s() [%s](%zu) [%s:%d]", __func__, (char *)buffer.data(), buffer.size(), inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
-    uint8_t buf[128] = {0};
-    sprintf((char *)buf, "RECV %zuBytes", buffer.size());
-    kcp->send(ByteBuffer(buf, strlen((char *)buf)));
-}
+// void onReadEvent(Kcp *kcp, ByteBuffer &buffer, sockaddr_in addr)
+// {
+//     LOGI("%s() [%s](%zu) [%s:%d]", __func__, (char *)buffer.data(), buffer.size(), inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+//     uint8_t buf[128] = {0};
+//     sprintf((char *)buf, "RECV %zuBytes", buffer.size());
+//     kcp->send(ByteBuffer(buf, strlen((char *)buf)));
+// }
 
 void signalCatch(int sig)
 {
-    CallStack stack;
+    eular::CallStack stack;
     stack.update();
-    stack.log(LOG_TAG, eular::LogLevel::FATAL);
+    stack.log(LOG_TAG, eular::LogLevel::LEVEL_FATAL);
 
     exit(0);
 }
@@ -70,28 +73,30 @@ int main(int argc, char **argv)
     signal(SIGSEGV, signalCatch);
     signal(SIGABRT, signalCatch);
 
-    KcpManager *manager = KcpManagerInstance::get(1, "test_kcp_server");
+    eular::KcpManager::Ptr pManager(new eular::KcpManager("manager", true));
 
-    int udp = createSocket();
-    assert(udp > 0);
-    sockaddr_in addr;
-    socklen_t len = sizeof(addr);
+    eular::KcpServer::SP spServer = std::make_shared<eular::KcpServer>();
+    assert(spServer->bind(SERVER_IP, SERVER_PORT));
 
-    KcpAttr attr;
-    attr.fd = udp;
-    attr.autoClose = true;
-    attr.conv = 0x1024;
-    attr.interval = 20;
-    attr.addr = addr;
-    attr.nodelay = 1;
-    attr.fastResend = 2;
-    attr.sendWndSize = 1024;
-    attr.recvWndSize = 1024;
+    eular::ReadEventCB recvEventCB = [](eular::KcpContext::SP spContex, const eular::ByteBuffer &buffer) {
+        eular::String8 data = (const char *)buffer.const_data();
 
-    Kcp::SP kcp(new Kcp(attr));
-    kcp->installRecvEvent(std::bind(onReadEvent, kcp.get(), std::placeholders::_1, std::placeholders::_2));
+        LOGI("[%s:%d] -> [%s:%d]: %s", spContex->getPeerHost().c_str(), spContex->getPeerPort(),
+            spContex->getLocalHost().c_str(), spContex->getLocalPort(),
+            data.c_str());
 
-    manager->addKcp(kcp);
-    manager->start(true);
+    };
+
+    spServer->installConnectEvent([recvEventCB](eular::KcpContext::SP spContext) -> bool {
+        LOGI("[%s:%d] connected", spContext->getPeerHost().c_str(), spContext->getPeerPort());
+        spContext->installRecvEvent(recvEventCB);
+        return true;
+    });
+
+    spServer->installDisconnectEvent([](eular::KcpContext::SP spContext) {
+        LOGI("[%s:%d] disconnected", spContext->getPeerHost().c_str(), spContext->getPeerPort());
+    });
+
+    pManager->start();
     return 0;
 }

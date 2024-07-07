@@ -43,6 +43,12 @@ public:
      */
     void installDisconnectEvent(DisconnectEventCB disconnectEventCB) noexcept;
 
+    /**
+     * @brief 重置所有连接
+     * 
+     */
+    void resetAll() noexcept;
+
 protected:
     // 读事件
     void onReadEvent() override;
