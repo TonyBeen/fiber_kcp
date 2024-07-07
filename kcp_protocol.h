@@ -39,13 +39,13 @@ struct KcpProtocol {
 };
 static const uint32_t KCP_PROTOCOL_SIZE = sizeof(KcpProtocol);
 
-inline bool IsLittleEngine();
-inline uint32_t GetKcpFlag();
-inline void InitKcpProtocol(KcpProtocol *pKcpProtocol);
-inline void SerializeKcpProtocol(KcpProtocol *pKcpProtocol, void *pBuffer);
-inline void DeserializeKcpProtocol(const void *pBuffer, KcpProtocol *pKcpProtocol);
-inline const uint8_t *DecodeUINT16(const uint8_t *p, uint16_t *w);
-inline const uint8_t *DecodeUINT32(const uint8_t *p, uint32_t *l);
+bool IsLittleEngine();
+uint32_t GetKcpFlag();
+void InitKcpProtocol(KcpProtocol *pKcpProtocol);
+void SerializeKcpProtocol(KcpProtocol *pKcpProtocol, void *pBuffer);
+void DeserializeKcpProtocol(const void *pBuffer, KcpProtocol *pKcpProtocol);
+const uint8_t *DecodeUINT16(const uint8_t *p, uint16_t *w);
+const uint8_t *DecodeUINT32(const uint8_t *p, uint32_t *l);
 
 } // namespace protocol
 

@@ -39,7 +39,7 @@ public:
     KcpContext();
     ~KcpContext();
 
-    bool installRecvEvent(ReadEventCB onRecvEvent);
+    void installRecvEvent(ReadEventCB onRecvEvent);
     bool send(eular::ByteBuffer &&buffer);
     void closeContext();
     void resetContext();

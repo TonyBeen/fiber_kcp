@@ -39,7 +39,7 @@ static bool g_isLittleEngine = false;
 
 namespace protocol {
 
-static inline bool IsLittleEngine()
+bool IsLittleEngine()
 {
 #ifndef BYTE_ORDER
     std::call_once(g_endianOnceFlag, __IsLittleEngine);
@@ -51,7 +51,7 @@ static inline bool IsLittleEngine()
     return g_isLittleEngine;
 }
 
-static inline uint32_t GetKcpFlag()
+uint32_t GetKcpFlag()
 {
 #ifndef BYTE_ORDER
     if (IsLittleEngine())
@@ -67,7 +67,7 @@ static inline uint32_t GetKcpFlag()
 #endif
 }
 
-static inline void InitKcpProtocol(KcpProtocol *pKcpProtocol)
+void InitKcpProtocol(KcpProtocol *pKcpProtocol)
 {
     pKcpProtocol->kcp_flag = KCP_FLAG;
     pKcpProtocol->kcp_mode = KCPMode::Normal;
@@ -78,7 +78,7 @@ static inline void InitKcpProtocol(KcpProtocol *pKcpProtocol)
     pKcpProtocol->kcp_conv = 0;
 }
 
-static inline void SerializeKcpProtocol(KcpProtocol *pKcpProtocol, void *pBuffer)
+void SerializeKcpProtocol(KcpProtocol *pKcpProtocol, void *pBuffer)
 {
 #ifndef BYTE_ORDER
     if (!IsLittleEngine()) {
@@ -103,7 +103,7 @@ static inline void SerializeKcpProtocol(KcpProtocol *pKcpProtocol, void *pBuffer
     memcpy(pBuffer, pKcpProtocol, KCP_PROTOCOL_SIZE);
 }
 
-static inline void DeserializeKcpProtocol(const void *pBuffer, KcpProtocol *pKcpProtocol)
+void DeserializeKcpProtocol(const void *pBuffer, KcpProtocol *pKcpProtocol)
 {
     const KcpProtocol *pTemp = (const KcpProtocol *)pBuffer;
 #ifndef BYTE_ORDER
@@ -128,7 +128,7 @@ static inline void DeserializeKcpProtocol(const void *pBuffer, KcpProtocol *pKcp
 #endif
 }
 
-static inline const uint8_t *DecodeUINT16(const uint8_t *p, uint16_t *w)
+const uint8_t *DecodeUINT16(const uint8_t *p, uint16_t *w)
 {
     static_assert(sizeof(uint16_t) == 2, "");
 
@@ -143,7 +143,7 @@ static inline const uint8_t *DecodeUINT16(const uint8_t *p, uint16_t *w)
     return p;
 }
 
-static inline const uint8_t *DecodeUINT32(const uint8_t *p, uint32_t *l)
+const uint8_t *DecodeUINT32(const uint8_t *p, uint32_t *l)
 {
     static_assert(sizeof(uint32_t) == 4, "");
 

@@ -230,6 +230,7 @@ void KcpServer::onACKReceived(protocol::KcpProtocol *pKcpProtocolReq, sockaddr_i
     LOGD("%s ACK Received from %s", __PRETTY_FUNCTION__, utils::Address2String((sockaddr *)&peerAddr));
     KcpFINInfo finInfo;
     finInfo.conv = 0;
+    finInfo.timerId = 0;
 
     // NOTE FIN/ACK传递的都是
     for (auto it = m_finDisconnectQueue.begin(); it != m_finDisconnectQueue.end(); ++it) {

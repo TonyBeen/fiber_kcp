@@ -184,7 +184,7 @@ void KcpClient::onReadEvent()
         protocol::KcpProtocol kcpProtoInput;
         protocol::DeserializeKcpProtocol(pHeaderBuf, &kcpProtoInput);
         LOGI("kcp conv = %#x", kcpProtoInput.kcp_conv);
-        if (kcpProtoInput.kcp_flag & KCP_FLAG != KCP_FLAG) {
+        if ((kcpProtoInput.kcp_flag & KCP_FLAG) != KCP_FLAG) {
             LOGW("Received a buffer without KCP_FALG(%#x) %#x", KCP_FLAG, kcpProtoInput.kcp_conv);
             m_kcpBuffer.clear();
             continue;
@@ -192,7 +192,7 @@ void KcpClient::onReadEvent()
 
         if (kcpProtoInput.kcp_flag == KCP_FLAG) {
             onCommandReceived(kcpProtoInput);
-        } else if (kcpProtoInput.kcp_flag & KCP_FLAG == KCP_FLAG) {
+        } else if ((kcpProtoInput.kcp_flag & KCP_FLAG) == KCP_FLAG) {
             sockaddr *pRecvAddr = (sockaddr *)&peerAddr;
             sockaddr *pConnectedAddr = (sockaddr *)&m_context->m_setting.remote_addr;
             if (eular_unlikely(!utils::SockaddrEqual(pRecvAddr, pConnectedAddr))) {

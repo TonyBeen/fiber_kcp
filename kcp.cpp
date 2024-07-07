@@ -26,9 +26,9 @@ namespace eular {
 Kcp::Kcp() :
     m_pKcpManager(nullptr),
     m_updSocket(-1),
-    m_autoClose(false),
     m_connectTimeout(3000),
-    m_disconnectTimeout(3000)
+    m_disconnectTimeout(3000),
+    m_autoClose(false)
 {
 }
 

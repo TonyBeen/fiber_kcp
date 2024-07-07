@@ -28,8 +28,8 @@ static thread_local KcpManager *g_pKcpManager = nullptr;
 KcpManager::KcpManager(const String8 &name, bool userCaller) :
     KScheduler(name, userCaller),
     m_kcpCtxCount(0),
-    m_eventFd(-1),
-    m_keepRun(false)
+    m_keepRun(false),
+    m_eventFd(-1)
 {
     m_epollFd = epoll_create(EPOLL_EVENT_SIZE);
     if (m_epollFd < 0) {

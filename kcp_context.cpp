@@ -44,7 +44,7 @@ void KcpContext::setSetting(const KcpSetting &setting)
     ikcp_nodelay(m_kcpHandle, setting.nodelay, setting.interval, setting.fast_resend, setting.nocwnd);
 }
 
-bool KcpContext::installRecvEvent(ReadEventCB onRecvEvent)
+void KcpContext::installRecvEvent(ReadEventCB onRecvEvent)
 {
     m_recvEvent = onRecvEvent;
 }

@@ -17,8 +17,8 @@ static thread_local KScheduler *gScheduler = nullptr;    // 线程调度器
 static thread_local KFiber *gMainFiber = nullptr;        // 调度器的主协程
 
 KScheduler::KScheduler(const eular::String8 &name, bool userCaller) :
-    m_stopping(true),
     m_userCaller(userCaller),
+    m_stopping(true),
     m_name(name)
 {
     LOGD("%s() start tid num: %d, name: %s", __PRETTY_FUNCTION__, name.c_str());

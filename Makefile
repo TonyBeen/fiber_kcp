@@ -1,5 +1,5 @@
 CC = g++
-CPPFLAGS = -Wall -O2 -std=c++11 -g
+CPPFLAGS = -Wall -Wno-unused-function -O2 -std=c++11 -g
 SOFLAGS = -fPIC
 
 TARGET = libkcp.so
@@ -37,13 +37,13 @@ all :
 $(TARGET) : $(OBJ_LIST)
 	$(CC) $^ -o $@ $(SO_LIB_LIST) -shared
 
-test : kcp_server kcp_client kcp_bench
+test : test_kcp_server test_kcp_client test_kcp_bench
 
-kcp_server : $(TEST_SRC_DIR)/test_kcp_server.cc $(SRC_CPP_LIST)
+test_kcp_server : $(TEST_SRC_DIR)/test_kcp_server.cc $(SRC_CPP_LIST)
 	$(CC) $^ -o $@ $(SO_LIB_LIST)
-kcp_client : $(TEST_SRC_DIR)/test_kcp_client.cc $(SRC_CPP_LIST)
+test_kcp_client : $(TEST_SRC_DIR)/test_kcp_client.cc $(SRC_CPP_LIST)
 	$(CC) $^ -o $@ $(SO_LIB_LIST)
-kcp_bench : $(TEST_SRC_DIR)/kcp_benchmark.cc $(SRC_CPP_LIST)
+test_kcp_bench : $(TEST_SRC_DIR)/kcp_benchmark.cc $(SRC_CPP_LIST)
 	$(CC) $^ -o $@ $(SO_LIB_LIST)
 
 %.o : %.cpp
@@ -58,4 +58,4 @@ debug:
 	@echo $(OBJ_LIST)
 
 clean :
-	rm -rf $(OBJ_LIST) kcp_server kcp_client kcp_bench
+	rm -rf $(OBJ_LIST) test_kcp_server test_kcp_client test_kcp_bench
