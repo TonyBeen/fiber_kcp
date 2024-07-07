@@ -34,8 +34,8 @@
 kcp
 kcp/*
 
-kcp_server
-kcp_client
-kcp_bench
+test_kcp_server
+test_kcp_client
+test_kcp_bench
 
 .vscode
