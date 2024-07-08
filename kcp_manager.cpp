@@ -232,8 +232,6 @@ void KcpManager::idle()
                 ctx->triggerEvent(WRITE);
             }
         }
-
-        
     }
 }
 
