@@ -232,8 +232,6 @@ void KcpManager::threadloop()
                 ctx->triggerEvent(WRITE);
             }
         }
-
-        
     }
 }
 

@@ -21,7 +21,7 @@ KScheduler::KScheduler(const eular::String8 &name, bool userCaller) :
     m_stopping(true),
     m_name(name)
 {
-    LOGD("%s() name: %s", __PRETTY_FUNCTION__, name.c_str());
+    LOGD("%s(%s)", __func__, name.c_str());
 
     if (userCaller) {
         KFiber::GetThis();
