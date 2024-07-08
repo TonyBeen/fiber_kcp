@@ -139,7 +139,7 @@ void KcpClient::installDisconnectEvent(DisconnectEventCB disconnectEventCB) noex
 
 void KcpClient::onReadEvent()
 {
-    static_assert(KCP_HEADER_SIZE == protocol::KCP_PROTOCOL_SIZE);
+    static_assert(KCP_HEADER_SIZE == protocol::KCP_PROTOCOL_SIZE, "KCP_HEADER_SIZE != protocol::KCP_PROTOCOL_SIZE");
 
     sockaddr_in peerAddr;
     socklen_t len = sizeof(sockaddr_in);

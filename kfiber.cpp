@@ -83,8 +83,7 @@ KFiber::~KFiber()
     --gFiberCount;
     LOGD("KFiber::~KFiber() id = %lu, total = %d", mFiberId, gFiberCount.load());
     if (mStack) {
-        LOG_ASSERT(mState == TERM || mState == EXCEPT,
-            "file %s, line %d", __FILE__, __LINE__);
+        LOG_ASSERT(mState == TERM || mState == EXCEPT, "file %s, line %d", __FILE__, __LINE__);
         Allocator::dealloc(mStack, mStackSize);
     } else {    // main fiber
         LOG_ASSERT(!mCb, "");
@@ -140,7 +139,7 @@ KFiber::SP KFiber::GetThis()
     if (gCurrentFiber) {
         return gCurrentFiber->shared_from_this();
     }
-    KFiber::SP fiber(new KFiber()); // std::make_shared<KFiber>()
+    KFiber::SP fiber(new KFiber());
     LOG_ASSERT(fiber.get() == gCurrentFiber, "");
     gThreadMainFiber = fiber;
     LOG_ASSERT(gThreadMainFiber, "");

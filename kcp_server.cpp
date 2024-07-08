@@ -97,13 +97,13 @@ void KcpServer::onReadEvent()
         protocol::KcpProtocol kcpProtoInput;
         protocol::DeserializeKcpProtocol(pHeaderBuf, &kcpProtoInput);
         LOGI("kcp conv = %#x", kcpProtoInput.kcp_conv);
-        if ((kcpProtoInput.kcp_conv & KCP_FLAG) != KCP_FLAG) {
+        if ((kcpProtoInput.kcp_flag & KCP_FLAG) != KCP_FLAG) {
             LOGW("Received a buffer without KCP_FALG(%#x) %#x", KCP_FLAG, kcpProtoInput.kcp_conv);
             m_kcpBuffer.clear();
             continue;
         }
 
-        if (kcpProtoInput.kcp_conv == KCP_FLAG) {
+        if (kcpProtoInput.kcp_flag == KCP_FLAG) {
             // 处理连接/断连请求
             switch (kcpProtoInput.syn_command) {
             case protocol::SYNCommand::SYN:
@@ -121,7 +121,7 @@ void KcpServer::onReadEvent()
             default:
                 break;
             }
-        } else if ((kcpProtoInput.kcp_conv & KCP_FLAG) == KCP_FLAG) {
+        } else if ((kcpProtoInput.kcp_flag & KCP_FLAG) == KCP_FLAG) {
             // 处理KCP数据
             onKcpDataReceived(m_kcpBuffer, kcpProtoInput.kcp_conv, peerAddr);
         }
@@ -315,6 +315,7 @@ void KcpServer::onRSTReceived(protocol::KcpProtocol *pKcpProtocolReq, sockaddr_i
 
 void KcpServer::onConnectTimeout(uint32_t conv)
 {
+    LOGD("%s conv = %u", __PRETTY_FUNCTION__, conv);
     // 超时将其从半连接队列移除并发送RST命令
     for (auto it = m_synConnectQueue.begin(); it != m_synConnectQueue.end(); ++it) {
         if (it->conv == conv) {
@@ -333,6 +334,7 @@ void KcpServer::onConnectTimeout(uint32_t conv)
                     (sockaddr *)&(it->peer_addr), (socklen_t)sizeof(sockaddr_in));
 
             m_synConnectQueue.erase(it);
+            break;
         }
     }
 }

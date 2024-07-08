@@ -17,8 +17,8 @@
 
 namespace eular {
 
-static thread_local Thread *gThread = nullptr;      // 当前线程
-static thread_local eular::String8 gThreadName;     // 当前线程名字
+static thread_local Thread *gThread = nullptr;  // 当前线程
+static thread_local eular::String8 gThreadName; // 当前线程名字
 
 pthread_once_t g_onceControl = PTHREAD_ONCE_INIT;
 static uint64_t g_maxThreadStackSize = PTHREAD_STACK_MIN;
@@ -127,7 +127,15 @@ void *Thread::Entrance(void *arg)
     std::function<void()> cb;
     cb.swap(th->m_cb);
 
-    cb();
+    try
+    {
+        cb();
+    }
+    catch(const std::exception& e)
+    {
+        LOGE("%s: %s", __PRETTY_FUNCTION__, e.what());
+    }
+
     gThread = nullptr;
     return nullptr;
 }

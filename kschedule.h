@@ -55,6 +55,7 @@ public:
     }
 
 protected:
+    uint32_t getQueueSize();
     void setThis();
     void processEvnet();
     /**
@@ -76,7 +77,7 @@ protected:
 
         void reset()
         {
-            fiberPtr = nullptr;
+            fiberPtr.reset();
             cb = nullptr;
         }
     };

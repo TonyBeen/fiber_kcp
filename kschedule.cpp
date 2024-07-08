@@ -46,6 +46,12 @@ KScheduler::~KScheduler()
     }
 }
 
+uint32_t KScheduler::getQueueSize()
+{
+    AutoLock<Mutex> lock(m_queueMutex);
+    return static_cast<uint32_t>(m_fiberQueue.size());
+}
+
 void KScheduler::setThis()
 {
     gScheduler = this;
@@ -87,13 +93,11 @@ void KScheduler::stop()
 
 void KScheduler::processEvnet()
 {
-    LOGD("KScheduler::processEvnet() in %s:%p", Thread::GetThreadName().c_str(), Thread::CurrentThread());
+    LOGD("KScheduler::processEvnet() in %s: %d", Thread::GetThreadName().c_str(), gettid());
     setThis();
-
     if (gettid() != m_rootThread) {
         gMainFiber = KFiber::GetThis().get();   // 为每个线程创建主协程
     }
-
     KFiber::SP idleFiber = std::make_shared<KFiber>(std::bind(&KScheduler::idle, this));
     KFiber::SP cbFiber(nullptr);
 
@@ -102,6 +106,7 @@ void KScheduler::processEvnet()
         ft.reset();
         bool isActive = false;
         {
+            AutoLock<Mutex> lock(m_queueMutex);
             auto it = m_fiberQueue.begin();
             if (it != m_fiberQueue.end()) {
                 LOG_ASSERT(it->fiberPtr || it->cb, "task can not be null");
@@ -109,7 +114,6 @@ void KScheduler::processEvnet()
                 ft = *it;
                 m_fiberQueue.erase(it);
                 isActive = true;
-                break;
             }
         }
 

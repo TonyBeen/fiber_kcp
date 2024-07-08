@@ -34,6 +34,7 @@ KTimer::KTimer(uint64_t ms, CallBack cb, uint32_t recycle) :
     m_timerCallback(cb)
 {
     m_timerCtx.next_timeout = CurrentTime() + ms;
+    m_timerCtx.recycle_time = recycle;
     m_timerCtx.unique_id = ++gUniqueIdCount;
     m_timerCtx.user_data = this;
 }

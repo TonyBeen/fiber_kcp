@@ -18,7 +18,7 @@
 
 using namespace std;
 
-#define SERVER_IP   "0.0.0.0"
+#define SERVER_IP   "10.0.24.17"
 #define SERVER_PORT 12000
 
 int createSocket()
@@ -96,7 +96,7 @@ int main(int argc, char **argv)
         LOGI("[%s:%d] disconnected", spContext->getPeerHost().c_str(), spContext->getPeerPort());
     });
 
-    pManager->addKcp(spServer);
+    assert(pManager->addKcp(spServer));
 
     pManager->start();
     return 0;

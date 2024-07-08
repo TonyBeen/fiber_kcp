@@ -53,6 +53,11 @@ bool Kcp::bind(const eular::String8 &ip, uint16_t port) noexcept
         return false;
     }
 
+    int32_t flag = fcntl(m_updSocket, F_GETFL);
+    if (!(flag & O_NONBLOCK)) {
+        fcntl(m_updSocket, F_SETFL, flag | O_NONBLOCK);
+    }
+
     memset(&localAddr, 0, sizeof(localAddr));
     localAddr.sin_family = AF_INET;
     localAddr.sin_addr.s_addr = inet_addr(ip.c_str());

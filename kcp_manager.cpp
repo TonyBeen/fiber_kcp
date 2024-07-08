@@ -87,7 +87,7 @@ bool KcpManager::addKcp(Kcp::SP kcp)
         }
     }
 
-    if (ctx->read != nullptr || ctx->write != nullptr) { // 说明已存在了
+    if (ctx->read != nullptr || ctx->write != nullptr) {
         return true;
     }
 
@@ -144,9 +144,9 @@ void KcpManager::start()
     m_keepRun = true;
 
     if (m_userCaller) {
-        processEvnet();
+        KcpManager::GetMainFiber()->resume();
     } else {
-        m_thread = std::make_shared<Thread>(std::bind(&KScheduler::processEvnet, this));
+        m_thread = std::make_shared<Thread>(std::bind(&KcpManager::processEvnet, this));
     }
 }
 
@@ -171,6 +171,7 @@ KcpManager *KcpManager::GetCurrentKcpManager()
 
 void KcpManager::idle()
 {
+    LOGI("%s", __PRETTY_FUNCTION__);
     g_pKcpManager = this;
 
     epoll_event *events = new epoll_event[EPOLL_EVENT_SIZE];
@@ -181,6 +182,7 @@ void KcpManager::idle()
     });
     LOG_ASSERT2(events != nullptr);
 
+    static const uint64_t MAX_EPOLL_WAIT = 10;
     uint64_t timeoutms = 10;
     while (m_keepRun) {
         {
@@ -189,15 +191,16 @@ void KcpManager::idle()
         }
 
         timeoutms = getNearTimeout();
+        timeoutms = timeoutms > MAX_EPOLL_WAIT ? MAX_EPOLL_WAIT : timeoutms;
         int32_t nev = 0;
         do {
             nev = epoll_wait(m_epollFd, events, EPOLL_EVENT_SIZE, timeoutms);
             if (nev < 0 && errno == EINTR) {
+                KFiber::Yeild2Hold();
             } else {
                 break;
             }
         } while (true);
-
         if (nev < 0) {
             LOGE("epoll_wait error. [%d, %s]", errno, strerror(errno));
             break;
@@ -231,6 +234,10 @@ void KcpManager::idle()
             if (ev.events | EPOLLOUT) {
                 ctx->triggerEvent(WRITE);
             }
+        }
+
+        if (getQueueSize() > 0) {
+            KFiber::Yeild2Hold();
         }
     }
 }

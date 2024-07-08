@@ -34,6 +34,12 @@ typedef struct heap_timer {
         node.left = nullptr;
         node.right = nullptr;
         node.parent = nullptr;
+
+        tid = 0;
+        recycle_time = 0;
+        next_timeout = 0;
+        unique_id = 0;
+        user_data = nullptr;
     }
 #endif
 
