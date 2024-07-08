@@ -19,7 +19,7 @@
 
 using namespace std;
 
-#define SERVER_IP   "49.232.146.220"
+#define SERVER_IP   "0.0.0.0"
 #define SERVER_PORT 12000
 
 void signalCatch(int sig)
