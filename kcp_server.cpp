@@ -179,6 +179,7 @@ void KcpServer::onSYNReceived(protocol::KcpProtocol *pKcpProtocolReq, sockaddr_i
         if (!m_kcpConvBitmap.at(i)) {
             communicationNo = i;
             m_kcpConvBitmap.set(i, true);
+            break;
         }
     }
 

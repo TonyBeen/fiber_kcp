@@ -63,6 +63,7 @@ int main(int argc, char **argv)
     pManager->addKcp(spClient);
     pManager->start();
 
+    LOGI("start send...");
     uint8_t buf[4] = {'P', 'I', 'N', 'G' };
     while (true) {
         spClientContext->send(eular::ByteBuffer(buf, sizeof(buf)));
