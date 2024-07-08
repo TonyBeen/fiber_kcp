@@ -43,7 +43,7 @@ public:
     static KcpManager *GetCurrentKcpManager();
 
 private:
-    void threadloop();
+    virtual void idle() override;
     virtual void tickle() override;
     virtual void onTimerInsertedAtFront() override;
 

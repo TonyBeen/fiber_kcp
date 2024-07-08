@@ -144,9 +144,9 @@ void KcpManager::start()
     m_keepRun = true;
 
     if (m_userCaller) {
-        threadloop();
+        processEvnet();
     } else {
-        m_thread = std::make_shared<Thread>(std::bind(&KcpManager::threadloop, this));
+        m_thread = std::make_shared<Thread>(std::bind(&KScheduler::processEvnet, this));
     }
 }
 
@@ -169,7 +169,7 @@ KcpManager *KcpManager::GetCurrentKcpManager()
     return g_pKcpManager;
 }
 
-void KcpManager::threadloop()
+void KcpManager::idle()
 {
     g_pKcpManager = this;
 
