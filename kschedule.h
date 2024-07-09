@@ -57,6 +57,7 @@ public:
 protected:
     uint32_t getQueueSize();
     void setThis();
+    void threadEntry();
     void processEvnet();
     /**
      * @brief 唤醒处于idle阻塞态的线程
@@ -93,7 +94,7 @@ protected:
 protected:
     bool                m_userCaller;   // 是否包含用户线程
     int32_t             m_rootThread;   // userCaller为true时，为用户调用线程ID，false为-1
-    std::atomic<bool>   m_stopping;     // 是否停止
+    std::atomic<bool>   m_keepRun;      // 是否停止
     String8             m_name;         // 调度器名字
     KFiber::SP          m_rootFiber;    // userCaller为true时有效
     Mutex               m_queueMutex;   // 队列锁

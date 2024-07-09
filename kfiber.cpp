@@ -125,7 +125,7 @@ void KFiber::swapOut()
 {
     SetThis(gThreadMainFiber.get());
     if (swapcontext(&mCtx, &gThreadMainFiber->mCtx)) {
-        LOG_ASSERT(false, "swapIn() id = %d, errno = %d, %s", mFiberId, errno, strerror(errno));
+        LOG_ASSERT(false, "swapOut() id = %d, errno = %d, %s", mFiberId, errno, strerror(errno));
     }
 }
 

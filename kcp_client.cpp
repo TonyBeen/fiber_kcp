@@ -172,12 +172,14 @@ void KcpClient::onReadEvent()
             continue;
         }
 
+        LOGI("recvfrom [%s] size = %d", utils::Address2String((sockaddr *)&peerAddr), realReadSize);
+
         m_kcpBuffer.resize(realReadSize);
         uint8_t *pHeaderBuf = m_kcpBuffer.data();
         // 解析协议
         protocol::KcpProtocol kcpProtoInput;
         protocol::DeserializeKcpProtocol(pHeaderBuf, &kcpProtoInput);
-        LOGI("kcp conv = %#x", kcpProtoInput.kcp_flag);
+        LOGD("kcp conv = %#x", kcpProtoInput.kcp_flag);
         if ((kcpProtoInput.kcp_flag & KCP_FLAG) != KCP_FLAG) {
             LOGW("Received a buffer without KCP_FALG(%#x) %#x", KCP_FLAG, kcpProtoInput.kcp_conv);
             m_kcpBuffer.clear();
@@ -216,8 +218,9 @@ void KcpClient::onCommandReceived(protocol::KcpProtocol &kcpProtoInput)
     switch (kcpProtoInput.syn_command) {
     case protocol::SYNCommand::ACK:
     {
+        // NOTE 收到ACK表示主动断连, 无需回调
         KcpManager::GetCurrentKcpManager()->delTimer(m_finInfo.timerId);
-        break;
+        return;
     }
     case protocol::SYNCommand::FIN:
     {
@@ -267,8 +270,8 @@ void KcpClient::onContextClosed(KcpContext::SP spContext, bool isClose)
         ::sendto(m_updSocket, buffer, protocol::KCP_PROTOCOL_SIZE, 0,
             (sockaddr *)&spContext->m_setting.remote_addr, sizeof(sockaddr_in));
 
-        auto spTimer = KcpManager::GetCurrentKcpManager()->addTimer(m_disconnectTimeout,
-            std::bind(&KcpClient::onDisconnectTimeout, this, spContext->m_setting.conv));
+        auto spTimer = m_pKcpManager->addTimer(m_disconnectTimeout,
+            std::bind(&KcpClient::onDisconnectTimeout, this));
         KcpFINInfo finInfo = {
             .timeout = m_disconnectTimeout,
             .conv = spContext->m_setting.conv,
@@ -289,19 +292,12 @@ void KcpClient::onContextClosed(KcpContext::SP spContext, bool isClose)
             (sockaddr *)&spContext->m_setting.remote_addr, sizeof(sockaddr_in));
 
         KcpManager::GetCurrentKcpManager()->delTimer(m_context->m_timerId);
-        if (m_disconnectEventCB) {
-            m_disconnectEventCB(spContext);
-        }
     }
 }
 
-void KcpClient::onDisconnectTimeout(uint32_t conv)
+void KcpClient::onDisconnectTimeout()
 {
     KcpManager::GetCurrentKcpManager()->delTimer(m_context->m_timerId);
-
-    if (m_disconnectEventCB) {
-        m_disconnectEventCB(m_context);
-    }
 }
 
 } // namespace eular

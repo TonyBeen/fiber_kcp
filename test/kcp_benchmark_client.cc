@@ -6,21 +6,23 @@
  ************************************************************************/
 
 #include <assert.h>
-#include <iostream>
 #include <signal.h>
 #include <stdio.h>
+
 #include <log/log.h>
 #include <log/callstack.h>
 
 #include "../kcp_manager.h"
 #include "../kcp_client.h"
 
-#define LOG_TAG "test-kcp-client"
+#define LOG_TAG "kcp-benchmark-client"
 
 using namespace std;
 
 #define SERVER_IP   "10.0.24.17"
 #define SERVER_PORT 12000
+
+volatile bool g_exit = false;
 
 void signalCatch(int sig)
 {
@@ -28,17 +30,20 @@ void signalCatch(int sig)
         eular::CallStack stack;
         stack.update();
         stack.log(LOG_TAG, eular::LogLevel::LEVEL_FATAL);
-    }
 
-    exit(0);
+        exit(0);
+    } else if (sig == SIGINT) {
+        g_exit = true;
+    }
 }
 
 int main(int argc, char **argv)
 {
     signal(SIGSEGV, signalCatch);
     signal(SIGABRT, signalCatch);
+    signal(SIGINT, signalCatch);
 
-    eular::log::InitLog(eular::LogLevel::LEVEL_WARN);
+    eular::log::InitLog(eular::LogLevel::LEVEL_INFO);
 
     eular::ReadEventCB recvEventCB = [](eular::KcpContext::SP spContex, const eular::ByteBuffer &buffer) {
         eular::String8 data = (const char *)buffer.const_data();
@@ -47,7 +52,7 @@ int main(int argc, char **argv)
             spContex->getLocalHost().c_str(), spContex->getLocalPort(), data.c_str());
     };
 
-    eular::KcpManager::Ptr pManager(new eular::KcpManager("kcp-client", false));
+    eular::KcpManager::Ptr pManager(new eular::KcpManager("kcp-benchmark-client", false));
 
     eular::KcpClient::SP spClient = std::make_shared<eular::KcpClient>();
     spClient->setWindowSize(1024, 1024);
@@ -68,10 +73,13 @@ int main(int argc, char **argv)
     // 一包udp数据最大size * 16
     static const uint32_t SIZE = (MTU_SIZE - protocol::KCP_PROTOCOL_SIZE) * 16;
     static char buf[SIZE] = {0};
-    while (true) {
+    while (!g_exit) {
         spClientContext->send(std::move(eular::ByteBuffer(buf, SIZE)));
         msleep(10);
     }
 
+    spClientContext->closeContext();
+    sleep(1);
+    pManager->stop();
     return 0;
 }

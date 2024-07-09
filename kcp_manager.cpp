@@ -28,7 +28,6 @@ static thread_local KcpManager *g_pKcpManager = nullptr;
 KcpManager::KcpManager(const String8 &name, bool userCaller) :
     KScheduler(name, userCaller),
     m_kcpCtxCount(0),
-    m_keepRun(false),
     m_eventFd(-1)
 {
     m_epollFd = epoll_create(EPOLL_EVENT_SIZE);
@@ -146,7 +145,7 @@ void KcpManager::start()
     if (m_userCaller) {
         KcpManager::GetMainFiber()->resume();
     } else {
-        m_thread = std::make_shared<Thread>(std::bind(&KcpManager::processEvnet, this));
+        m_thread = std::make_shared<Thread>(std::bind(&KcpManager::threadEntry, this));
     }
 }
 
@@ -156,7 +155,6 @@ void KcpManager::stop()
         return;
     }
 
-    m_keepRun = false;
     KScheduler::stop();
 
     if (m_thread && m_thread->joinable()) {

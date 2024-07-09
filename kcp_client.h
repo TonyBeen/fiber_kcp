@@ -73,7 +73,7 @@ protected:
     void onContextClosed(KcpContext::SP spContext, bool isClose);
 
     // 断连超时
-    void onDisconnectTimeout(uint32_t conv);
+    void onDisconnectTimeout();
 
 private:
     uint32_t            m_sendWinSize;

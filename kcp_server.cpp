@@ -76,7 +76,7 @@ void KcpServer::onReadEvent()
                                                             (sockaddr *)&peerAddr, &len));
 #ifdef _DEBUG
         stopwatch.stop();
-        LOGI("recvfrom elapsed %zu us", stopwatch.elapsedTime());
+        LOGD("recvfrom elapsed %zu us", stopwatch.elapsedTime());
 #endif
         if (realReadSize < 0) {
             if (errno != EAGAIN) {
@@ -96,7 +96,7 @@ void KcpServer::onReadEvent()
         // 解析协议
         protocol::KcpProtocol kcpProtoInput;
         protocol::DeserializeKcpProtocol(pHeaderBuf, &kcpProtoInput);
-        LOGI("kcp conv = %#x", kcpProtoInput.kcp_flag);
+        LOGD("kcp conv = %#x", kcpProtoInput.kcp_flag);
         if ((kcpProtoInput.kcp_flag & KCP_FLAG) != KCP_FLAG) {
             LOGW("Received a buffer without KCP_FALG(%#x) %#x", KCP_FLAG, kcpProtoInput.kcp_flag);
             m_kcpBuffer.clear();

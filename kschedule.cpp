@@ -18,7 +18,7 @@ static thread_local KFiber *gMainFiber = nullptr;        // 调度器的主协�
 
 KScheduler::KScheduler(const eular::String8 &name, bool userCaller) :
     m_userCaller(userCaller),
-    m_stopping(true),
+    m_keepRun(false),
     m_name(name)
 {
     LOGD("%s(%s)", __func__, name.c_str());
@@ -40,7 +40,7 @@ KScheduler::KScheduler(const eular::String8 &name, bool userCaller) :
 
 KScheduler::~KScheduler()
 {
-    LOG_ASSERT(m_stopping, "You should call stop before deconstruction");
+    LOG_ASSERT(m_keepRun == false, "You should call stop before deconstruction");
     if (gScheduler == this) {
         gScheduler = nullptr;
     }
@@ -76,7 +76,7 @@ void KScheduler::stop()
         }
     }
 
-    m_stopping = true;
+    m_keepRun = false;
 
     if (m_userCaller) {
         LOG_ASSERT2(GetThis() == this);
@@ -86,23 +86,35 @@ void KScheduler::stop()
     }
 
     // 用调用线程处理剩余任务
-    if (m_rootFiber && !stopping()) {
+    if (m_rootThread > 0 && m_rootFiber && !stopping()) {
         m_rootFiber->call();
+    }
+}
+
+void KScheduler::threadEntry()
+{
+    try
+    {
+        setThis();
+        KFiber::GetThis(); // 为每个线程创建主协程
+        m_rootFiber = std::make_shared<KFiber>(std::bind(&KScheduler::processEvnet, this));
+        gMainFiber = m_rootFiber.get();
+        gMainFiber->resume();
+    }
+    catch(const std::exception& e)
+    {
+        LOGE("%s catch exception: %s", __PRETTY_FUNCTION__, e.what());
     }
 }
 
 void KScheduler::processEvnet()
 {
     LOGD("KScheduler::processEvnet() in %s: %d", Thread::GetThreadName().c_str(), gettid());
-    setThis();
-    if (gettid() != m_rootThread) {
-        gMainFiber = KFiber::GetThis().get();   // 为每个线程创建主协程
-    }
     KFiber::SP idleFiber = std::make_shared<KFiber>(std::bind(&KScheduler::idle, this));
     KFiber::SP cbFiber(nullptr);
 
     FiberBindThread ft;
-    while (true) {
+    while (m_keepRun) {
         ft.reset();
         bool isActive = false;
         {
@@ -162,6 +174,9 @@ void KScheduler::processEvnet()
             }
         }
     }
+
+    // 将idle执行完毕, 平稳退出
+    idleFiber->resume();
 }
 
 void KScheduler::idle()
@@ -177,7 +192,7 @@ void KScheduler::tickle()
 
 bool KScheduler::stopping()
 {
-    return m_stopping && m_fiberQueue.empty();
+    return m_keepRun && m_fiberQueue.empty();
 }
 
 } // namespace eular

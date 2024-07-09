@@ -11,11 +11,7 @@ SO_LIB_LIST = -lutils -llog -lpthread -ldl
 SRC_DIR = .
 TEST_SRC_DIR = ./test
 
-EXAMPLE_SRC_LIST = 						\
-	$(TEST_SRC_DIR)/test_kcp_server.cc	\
-	$(TEST_SRC_DIR)/test_kcp_client.cc	\
-	$(TEST_SRC_DIR)/test_kcp_bench.cc	\
-
+EXAMPLE_SRC_LIST = $(wildcard $(TEST_SRC_DIR)/*.cc)
 EXAMPLE_OBJ_LIST = $(patsubst %.cc, %.o, $(EXAMPLE_SRC_LIST))
 
 SRC_C_LIST = 					\

@@ -72,7 +72,6 @@ private:
     eular::Mutex            m_ctxMutex;
     ContxtMap               m_contextMap;
     std::atomic<uint16_t>   m_kcpCtxCount;
-    std::atomic<bool>       m_keepRun;
     Thread::SP              m_thread;
     int32_t                 m_epollFd;
     int32_t                 m_eventFd;
