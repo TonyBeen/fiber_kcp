@@ -11,6 +11,13 @@ SO_LIB_LIST = -lutils -llog -lpthread -ldl
 SRC_DIR = .
 TEST_SRC_DIR = ./test
 
+EXAMPLE_SRC_LIST = 						\
+	$(TEST_SRC_DIR)/test_kcp_server.cc	\
+	$(TEST_SRC_DIR)/test_kcp_client.cc	\
+	$(TEST_SRC_DIR)/test_kcp_bench.cc	\
+
+EXAMPLE_OBJ_LIST = $(patsubst %.cc, %.o, $(EXAMPLE_SRC_LIST))
+
 SRC_C_LIST = 					\
 	$(SRC_DIR)/ikcp.c			\
 
@@ -32,19 +39,20 @@ OBJ_LIST += $(patsubst %.c, %.o, $(SRC_C_LIST))
 
 all :
 	make $(TARGET)
-	make test_kcp_server
-	make test_kcp_client
+	make test
 
 $(TARGET) : $(OBJ_LIST)
 	$(CC) $^ -o $@ $(SO_LIB_LIST) -shared
 
-test : test_kcp_server test_kcp_client test_kcp_bench
+test : test_kcp_server test_kcp_client kcp_benchmark_server kcp_benchmark_client
 
 test_kcp_server : $(TEST_SRC_DIR)/test_kcp_server.o $(OBJ_LIST)
 	$(CC) $^ -o $@ $(INCLUDE_PATH) $(CPPFLAGS) $(SO_LIB_LIST)
 test_kcp_client : $(TEST_SRC_DIR)/test_kcp_client.o $(OBJ_LIST)
 	$(CC) $^ -o $@ $(INCLUDE_PATH) $(CPPFLAGS) $(SO_LIB_LIST)
-test_kcp_bench : $(TEST_SRC_DIR)/kcp_benchmark.o $(OBJ_LIST)
+kcp_benchmark_server : $(TEST_SRC_DIR)/kcp_benchmark_server.o $(OBJ_LIST)
+	$(CC) $^ -o $@ $(INCLUDE_PATH) $(CPPFLAGS) $(SO_LIB_LIST)
+kcp_benchmark_client : $(TEST_SRC_DIR)/kcp_benchmark_client.o $(OBJ_LIST)
 	$(CC) $^ -o $@ $(INCLUDE_PATH) $(CPPFLAGS) $(SO_LIB_LIST)
 
 %.o : %.cpp
@@ -58,8 +66,6 @@ test_kcp_bench : $(TEST_SRC_DIR)/kcp_benchmark.o $(OBJ_LIST)
 
 .PHONY: all $(TARGET) clean
 
-debug:
-	@echo $(OBJ_LIST)
-
 clean :
-	rm -rf $(OBJ_LIST) test_kcp_server test_kcp_client test_kcp_bench
+	-rm -rf $(OBJ_LIST) $(EXAMPLE_OBJ_LIST)
+	-rm -rf test_kcp_server test_kcp_client kcp_benchmark_server kcp_benchmark_client
