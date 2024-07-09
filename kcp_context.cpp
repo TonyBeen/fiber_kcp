@@ -10,6 +10,7 @@
 
 #include "ikcp.h"
 #include "ktimer.h"
+#include "kcp_utils.h"
 
 #define LOG_TAG "KcpContext"
 
@@ -102,8 +103,10 @@ uint16_t KcpContext::getPeerPort() const
 int KcpContext::KcpOutput(const char *buf, int len, IKCPCB *kcp, void *user)
 {
     KcpContext *pKcpCtx = static_cast<KcpContext *>(user);
+    LOGD("kcp callback. conv: %#x sendto [%s]", pKcpCtx->m_setting.conv,
+        utils::Address2String((sockaddr *)&pKcpCtx->m_setting.remote_addr));
+
     if (buf && len > 0) {
-        LOGD("kcp callback. sendto [%s:%d]", inet_ntoa(pKcpCtx->m_setting.remote_addr.sin_addr), ntohs(pKcpCtx->m_setting.remote_addr.sin_port));
         return ::sendto(pKcpCtx->m_setting.fd, buf, len, 0, (sockaddr *)&pKcpCtx->m_setting.remote_addr, sizeof(sockaddr_in));
     }
 

@@ -40,17 +40,20 @@ $(TARGET) : $(OBJ_LIST)
 
 test : test_kcp_server test_kcp_client test_kcp_bench
 
-test_kcp_server : $(TEST_SRC_DIR)/test_kcp_server.cc $(SRC_CPP_LIST) $(SRC_C_LIST)
+test_kcp_server : $(TEST_SRC_DIR)/test_kcp_server.o $(OBJ_LIST)
 	$(CC) $^ -o $@ $(INCLUDE_PATH) $(CPPFLAGS) $(SO_LIB_LIST)
-test_kcp_client : $(TEST_SRC_DIR)/test_kcp_client.cc $(SRC_CPP_LIST) $(SRC_C_LIST)
+test_kcp_client : $(TEST_SRC_DIR)/test_kcp_client.o $(OBJ_LIST)
 	$(CC) $^ -o $@ $(INCLUDE_PATH) $(CPPFLAGS) $(SO_LIB_LIST)
-test_kcp_bench : $(TEST_SRC_DIR)/kcp_benchmark.cc $(SRC_CPP_LIST) $(SRC_C_LIST)
+test_kcp_bench : $(TEST_SRC_DIR)/kcp_benchmark.o $(OBJ_LIST)
 	$(CC) $^ -o $@ $(INCLUDE_PATH) $(CPPFLAGS) $(SO_LIB_LIST)
 
 %.o : %.cpp
 	$(CC) -c $^ -o $@ $(INCLUDE_PATH) $(CPPFLAGS) $(SOFLAGS)
 
 %.o : %.c
+	$(CC) -c $^ -o $@ $(INCLUDE_PATH) $(CPPFLAGS) $(SOFLAGS)
+
+%.o : %.cc
 	$(CC) -c $^ -o $@ $(INCLUDE_PATH) $(CPPFLAGS) $(SOFLAGS)
 
 .PHONY: all $(TARGET) clean

@@ -128,4 +128,9 @@ uint16_t Kcp::getLocalPort() const
     return m_localPort;
 }
 
+void Kcp::setKcpManager(KcpManager* pKcpManager)
+{
+    m_pKcpManager = pKcpManager;
+}
+
 } // namespace eular

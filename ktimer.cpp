@@ -108,6 +108,7 @@ KTimer::SP KTimerManager::addConditionTimer(uint64_t ms, KTimer::CallBack cb, st
 
 void KTimerManager::delTimer(uint64_t timerId)
 {
+    LOGD("delTimer(%lu)", timerId);
     bool isRootNode = false;
     {
         eular::WRAutoLock<eular::RWMutex> writeLock(m_timerRWMutex);

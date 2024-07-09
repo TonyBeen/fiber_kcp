@@ -80,7 +80,7 @@ private:
     ReadEventCB     m_recvEvent;
     ContextCloseCB  m_closeEvent;
 
-    using LockFreeQueue = moodycamel::ReaderWriterQueue<eular::ByteBuffer>;
+    using LockFreeQueue = moodycamel::BlockingReaderWriterQueue<eular::ByteBuffer>;
     LockFreeQueue   m_sendBufQueue;
 };
 

@@ -91,7 +91,7 @@ bool KcpManager::addKcp(Kcp::SP kcp)
         return true;
     }
 
-    kcp->m_pKcpManager = this;
+    kcp->setKcpManager(this);
 
     int32_t flag = fcntl(sockFd, F_GETFL);
     if (!(flag & O_NONBLOCK)) {

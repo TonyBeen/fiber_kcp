@@ -63,6 +63,9 @@ protected:
     // 读事件
     void onReadEvent() override;
 
+    // 加入Manager
+    void setKcpManager(KcpManager* pKcpManager) override;
+
     // 收到命令
     void onCommandReceived(protocol::KcpProtocol &kcpProtoInput);
 

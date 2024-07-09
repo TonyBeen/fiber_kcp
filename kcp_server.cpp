@@ -96,9 +96,9 @@ void KcpServer::onReadEvent()
         // 解析协议
         protocol::KcpProtocol kcpProtoInput;
         protocol::DeserializeKcpProtocol(pHeaderBuf, &kcpProtoInput);
-        LOGI("kcp conv = %#x", kcpProtoInput.kcp_conv);
+        LOGI("kcp conv = %#x", kcpProtoInput.kcp_flag);
         if ((kcpProtoInput.kcp_flag & KCP_FLAG) != KCP_FLAG) {
-            LOGW("Received a buffer without KCP_FALG(%#x) %#x", KCP_FLAG, kcpProtoInput.kcp_conv);
+            LOGW("Received a buffer without KCP_FALG(%#x) %#x", KCP_FLAG, kcpProtoInput.kcp_flag);
             m_kcpBuffer.clear();
             continue;
         }
@@ -123,7 +123,7 @@ void KcpServer::onReadEvent()
             }
         } else if ((kcpProtoInput.kcp_flag & KCP_FLAG) == KCP_FLAG) {
             // 处理KCP数据
-            onKcpDataReceived(m_kcpBuffer, kcpProtoInput.kcp_conv, peerAddr);
+            onKcpDataReceived(m_kcpBuffer, kcpProtoInput.kcp_flag, peerAddr);
         }
 
         m_kcpBuffer.clear();
@@ -134,17 +134,18 @@ void KcpServer::onReadEvent()
 void KcpServer::onKcpDataReceived(const ByteBuffer &buffer, uint32_t conv, sockaddr_in peerAddr)
 {
     // 如果从半连接队列找到此会话, 关闭定时器并添加到Map
-    for (const auto &synIt : m_synConnectQueue) {
-        if (synIt.conv == conv) {
-            KcpManager::GetCurrentKcpManager()->delTimer(synIt.timerId);
+
+    for (auto synIt = m_synConnectQueue.begin(); synIt != m_synConnectQueue.end(); ++synIt) {
+        if (synIt->conv == conv) {
+            KcpManager::GetCurrentKcpManager()->delTimer(synIt->timerId);
             KcpContext::SP spContext = std::make_shared<KcpContext>();
             KcpSetting setting;
-            init_kcp(synIt.syn_protocol.kcp_mode, &setting);
+            init_kcp(synIt->syn_protocol.kcp_mode, &setting);
 
             setting.fd = m_updSocket;
             setting.conv = conv;
-            setting.send_wnd_size = synIt.syn_protocol.send_win_size;
-            setting.recv_wnd_size = synIt.syn_protocol.recv_win_size;
+            setting.send_wnd_size = synIt->syn_protocol.send_win_size;
+            setting.recv_wnd_size = synIt->syn_protocol.recv_win_size;
             setting.remote_addr = peerAddr;
             spContext->setSetting(setting);
             spContext->m_localHost = m_localHost;
@@ -158,6 +159,8 @@ void KcpServer::onKcpDataReceived(const ByteBuffer &buffer, uint32_t conv, socka
                 spContext->m_timerId = spTimer->getUniqueId();
                 m_kcpContextMap[conv] = spContext;
             }
+
+            m_synConnectQueue.erase(synIt);
             break;
         }
     }

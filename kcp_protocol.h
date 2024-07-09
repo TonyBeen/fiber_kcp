@@ -30,7 +30,7 @@ enum SYNCommand : int32_t {
 // 保持和KCP头部相同字节数
 struct KcpProtocol {
     uint32_t    kcp_flag;       // KCP标志
-    uint32_t    kcp_conv;       // 交流号, 断连时使用
+    uint32_t    kcp_conv;       // 交流号, 连接/断连时使用
     uint16_t    kcp_mode;       // kcp模式
     uint16_t    syn_command;    // 命令字段
     uint32_t    sn;             // 随机序列号

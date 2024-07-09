@@ -149,16 +149,6 @@ void KcpClient::onReadEvent()
     socklen_t len = sizeof(sockaddr_in);
     m_kcpBuffer.clear();
 
-    // NOTE 由于连接成功时还未将Kcp加入到Manager, 导致连接成功无法添加定时器, 故挪到此处
-    if (m_context->m_timerId == 0) {
-        auto spTimer = m_pKcpManager->addTimer(m_context->m_setting.interval,
-                std::bind(&KcpContext::onUpdateTimeout, m_context.get()), m_context->m_setting.interval);
-        m_context->m_timerId = spTimer->getUniqueId();
-
-        // 主动刷新一次
-        m_context->onUpdateTimeout();
-    }
-
     do {
 #ifdef _DEBUG
         ElapsedTime stopwatch(ElapsedTimeType::NANOSECOND);
@@ -187,7 +177,7 @@ void KcpClient::onReadEvent()
         // 解析协议
         protocol::KcpProtocol kcpProtoInput;
         protocol::DeserializeKcpProtocol(pHeaderBuf, &kcpProtoInput);
-        LOGI("kcp conv = %#x", kcpProtoInput.kcp_conv);
+        LOGI("kcp conv = %#x", kcpProtoInput.kcp_flag);
         if ((kcpProtoInput.kcp_flag & KCP_FLAG) != KCP_FLAG) {
             LOGW("Received a buffer without KCP_FALG(%#x) %#x", KCP_FLAG, kcpProtoInput.kcp_conv);
             m_kcpBuffer.clear();
@@ -207,6 +197,18 @@ void KcpClient::onReadEvent()
             }
         }
     } while (true);
+}
+
+void KcpClient::setKcpManager(KcpManager* pKcpManager)
+{
+    Kcp::setKcpManager(pKcpManager);
+
+    // NOTE 由于连接成功时还未将Kcp加入到Manager, 导致连接成功无法添加定时器, 故挪到此处
+    if (m_context->m_timerId == 0) {
+        auto spTimer = m_pKcpManager->addTimer(m_context->m_setting.interval,
+                std::bind(&KcpContext::onUpdateTimeout, m_context.get()), m_context->m_setting.interval);
+        m_context->m_timerId = spTimer->getUniqueId();
+    }
 }
 
 void KcpClient::onCommandReceived(protocol::KcpProtocol &kcpProtoInput)

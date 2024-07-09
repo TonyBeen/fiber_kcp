@@ -68,7 +68,7 @@ protected:
 
 protected:
     virtual void onReadEvent() = 0;
-
+    virtual void setKcpManager(KcpManager* pKcpManager);
 
 protected:
     KcpManager*     m_pKcpManager;          // KcpManager对象
