@@ -73,8 +73,7 @@ int main(int argc, char **argv)
         eular::String8 data = (const char *)buffer.const_data();
 
         LOGI("[%s:%d] -> [%s:%d]: %s", spContex->getPeerHost().c_str(), spContex->getPeerPort(),
-            spContex->getLocalHost().c_str(), spContex->getLocalPort(),
-            data.c_str());
+            spContex->getLocalHost().c_str(), spContex->getLocalPort(), data.c_str());
 
         if (data.strcasecmp("PING")) {
             eular::ByteBuffer bufResponse;

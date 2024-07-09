@@ -38,6 +38,13 @@ int main(int argc, char **argv)
     signal(SIGSEGV, signalCatch);
     signal(SIGABRT, signalCatch);
 
+    eular::ReadEventCB recvEventCB = [](eular::KcpContext::SP spContex, const eular::ByteBuffer &buffer) {
+        eular::String8 data = (const char *)buffer.const_data();
+
+        LOGI("[%s:%d] -> [%s:%d]: %s", spContex->getPeerHost().c_str(), spContex->getPeerPort(),
+            spContex->getLocalHost().c_str(), spContex->getLocalPort(), data.c_str());
+    };
+
     eular::KcpManager::Ptr pManager(new eular::KcpManager("kcp-client", false));
 
     eular::KcpClient::SP spClient = std::make_shared<eular::KcpClient>();
@@ -47,6 +54,7 @@ int main(int argc, char **argv)
 
     eular::KcpContext::SP spClientContext = spClient->getContext();
     assert(spClientContext != nullptr);
+    spClientContext->installRecvEvent(recvEventCB);
 
     eular::ReadEventCB recvEventCB = [](eular::KcpContext::SP spContex, const eular::ByteBuffer &buffer) {
         eular::String8 data = (const char *)buffer.const_data();
