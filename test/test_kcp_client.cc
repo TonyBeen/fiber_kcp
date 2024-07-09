@@ -56,14 +56,6 @@ int main(int argc, char **argv)
     assert(spClientContext != nullptr);
     spClientContext->installRecvEvent(recvEventCB);
 
-    eular::ReadEventCB recvEventCB = [](eular::KcpContext::SP spContex, const eular::ByteBuffer &buffer) {
-        eular::String8 data = (const char *)buffer.const_data();
-
-        LOGI("[%s:%d] -> [%s:%d]: %s", spContex->getPeerHost().c_str(), spContex->getPeerPort(),
-            spContex->getLocalHost().c_str(), spContex->getLocalPort(),
-            data.c_str());
-    };
-
     spClient->installDisconnectEvent([](eular::KcpContext::SP spContext) {
         LOGI("[%s:%d] disconnected", spContext->getPeerHost().c_str(), spContext->getPeerPort());
     });
