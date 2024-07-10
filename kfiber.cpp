@@ -52,7 +52,7 @@ KFiber::KFiber() :
         LOG_ASSERT(false, "getcontext error, %d %s", errno, strerror(errno));
     }
     SetThis(this);
-    LOGD("KFiber::KFiber() start id = %d, total = %d", mFiberId, gFiberCount.load());
+    LOGD("KFiber::KFiber() Main Fiber id = %d", mFiberId);
 }
 
 KFiber::KFiber(std::function<void()> cb, uint64_t stackSize) :
@@ -220,7 +220,7 @@ void KFiber::FiberEntry()
     LOG_ASSERT(ptr != nullptr, "will never be null to reach here");
     ptr->swapOut();
 
-    LOG_ASSERT(false, "never reach here");
+    // LOG_ASSERT(false, "never reach here");
 }
 
 } // namespace eular
