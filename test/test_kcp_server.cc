@@ -46,7 +46,7 @@ int main(int argc, char **argv)
         LOGI("[%s:%d] -> [%s:%d]: %s", spContex->getPeerHost().c_str(), spContex->getPeerPort(),
             spContex->getLocalHost().c_str(), spContex->getLocalPort(), data.c_str());
 
-        if (data.strcasecmp("PING")) {
+        if (0 == data.strcasecmp("PING")) {
             eular::ByteBuffer bufResponse;
             const char *response = "PONG";
             bufResponse.set((const uint8_t *)response, strlen(response));
