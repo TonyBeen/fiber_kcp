@@ -103,7 +103,7 @@ uint16_t KcpContext::getPeerPort() const
 int KcpContext::KcpOutput(const char *buf, int len, IKCPCB *kcp, void *user)
 {
     KcpContext *pKcpCtx = static_cast<KcpContext *>(user);
-    LOGI("kcp callback. conv: %#x sendto [%s] size = %d", pKcpCtx->m_setting.conv,
+    LOGD("kcp callback. conv: %#x sendto [%s] size = %d", pKcpCtx->m_setting.conv,
         utils::Address2String((sockaddr *)&pKcpCtx->m_setting.remote_addr), len);
 
     if (buf && len > 0) {

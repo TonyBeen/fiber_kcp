@@ -128,6 +128,8 @@ bool KcpClient::connect(const String8 &host, uint16_t port, KCPMode mode, uint32
         setting.remote_addr = recvAddr;
         m_context = std::make_shared<KcpContext>();
         m_context->setSetting(setting);
+        m_context->m_localHost = m_localHost;
+        m_context->m_localPort = m_localPort;
         m_context->m_closeEvent = std::bind(&KcpClient::onContextClosed, this, std::placeholders::_1, std::placeholders::_2);
 
         return true;
@@ -172,7 +174,7 @@ void KcpClient::onReadEvent()
             continue;
         }
 
-        LOGI("recvfrom [%s] size = %d", utils::Address2String((sockaddr *)&peerAddr), realReadSize);
+        LOGD("recvfrom [%s] size = %d", utils::Address2String((sockaddr *)&peerAddr), realReadSize);
 
         m_kcpBuffer.resize(realReadSize);
         uint8_t *pHeaderBuf = m_kcpBuffer.data();

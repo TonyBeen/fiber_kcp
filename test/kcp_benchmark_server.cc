@@ -64,11 +64,11 @@ int main(int argc, char **argv)
         g_receivedSize = 0;
 
         if (recvSize / 1000 / 1000 > 0) {
-            LOGW("onTimerEvent() %d Mb/s", recvSize / 1000 / 1000);
+            LOGW("onTimerEvent() %.2f Mb/s", (double)recvSize / 1000 / 1000);
         } else if (recvSize / 1000 > 0) {
-            LOGW("onTimerEvent() %d Kb/s", recvSize / 1000);
+            LOGW("onTimerEvent() %.2f Kb/s", (double)recvSize / 1000);
         } else {
-            LOGW("onTimerEvent() %d b/s", recvSize);
+            LOGW("onTimerEvent() %.2f b/s", (double)recvSize);
         }
     }, 1000);
 

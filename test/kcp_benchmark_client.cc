@@ -71,7 +71,7 @@ int main(int argc, char **argv)
     pManager->start();
 
     // 一包udp数据最大size * 16
-    static const uint32_t SIZE = (MTU_SIZE - protocol::KCP_PROTOCOL_SIZE) * 16;
+    static const uint32_t SIZE = (MTU_SIZE - protocol::KCP_PROTOCOL_SIZE) * 32;
     static char buf[SIZE] = {0};
     while (!g_exit) {
         spClientContext->send(std::move(eular::ByteBuffer(buf, SIZE)));
