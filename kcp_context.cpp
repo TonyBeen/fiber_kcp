@@ -11,10 +11,15 @@
 #include "ikcp.h"
 #include "ktimer.h"
 #include "kcp_utils.h"
+#include "kcp_protocol.h"
 
 #define LOG_TAG "KcpContext"
 
 #define CACHE_SIZE  8 * 1024
+
+#define BUFFER_MAX      (4 * 1024 * 1024)
+#define BUFFER_DEFAULE  (32 * 1024)
+#define BUFFER_MIN      (4 * 1024)
 
 namespace eular {
 KcpContext::KcpContext() :
@@ -50,14 +55,75 @@ void KcpContext::installRecvEvent(ReadEventCB onRecvEvent)
     m_recvEvent = onRecvEvent;
 }
 
+void KcpContext::setSendBufferSize(uint32_t size)
+{
+    AutoLock<Mutex> lock(m_bufMutex);
+    if (size < BUFFER_MIN) {
+        size = BUFFER_MIN;
+    } else if (size > BUFFER_MAX) {
+        size = BUFFER_MAX;
+    }
+
+    m_sendBuffer.reserve(size);
+}
+
+uint32_t KcpContext::bufferCapacity()
+{
+    AutoLock<Mutex> lock(m_bufMutex);
+    return static_cast<uint32_t>(m_sendBuffer.capacity());
+}
+
+uint32_t KcpContext::bufferSize()
+{
+    AutoLock<Mutex> lock(m_bufMutex);
+    return static_cast<uint32_t>(m_sendBuffer.size());
+}
+
+bool KcpContext::send(const void *buffer, uint32_t size)
+{
+#ifdef USE_BUFFER_QUEUE
+    ByteBuffer buf((const uint8_t *)buffer, size);
+    return m_sendBufQueue.enqueue(std::move(buf));
+#else
+    if (nullptr == buffer || 0 == size) {
+        return false;
+    }
+
+    AutoLock<Mutex> lock(m_bufMutex);
+    if (eular_unlikely(m_sendBuffer.capacity() == 0)) {
+        m_sendBuffer.reserve(BUFFER_DEFAULE);
+    }
+
+    uint32_t capacity = static_cast<uint32_t>(m_sendBuffer.capacity());
+    uint32_t bufSize = static_cast<uint32_t>(m_sendBuffer.size());
+    LOG_ASSERT2(capacity >= bufSize);
+
+    // 防止append自动扩容
+    if ((capacity - bufSize) < size) {
+        return false;
+    }
+
+    m_sendBuffer.append(static_cast<const uint8_t *>(buffer), size);
+    return true;
+#endif
+}
+
 bool KcpContext::send(const eular::ByteBuffer &buffer)
 {
+#ifdef USE_BUFFER_QUEUE
     return m_sendBufQueue.enqueue(buffer);
+#else
+    return this->send(buffer.const_data(), buffer.size());
+#endif
 }
 
 bool KcpContext::send(eular::ByteBuffer &&buffer)
 {
+#ifdef USE_BUFFER_QUEUE
     return m_sendBufQueue.enqueue(std::forward<eular::ByteBuffer>(buffer));
+#else
+    return this->send(buffer.const_data(), buffer.size());
+#endif
 }
 
 void KcpContext::closeContext()
@@ -115,6 +181,7 @@ int KcpContext::KcpOutput(const char *buf, int len, IKCPCB *kcp, void *user)
 
 void KcpContext::onUpdateTimeout()
 {
+#ifdef USE_BUFFER_QUEUE
     eular::ByteBuffer buffer;
     while (m_sendBufQueue.try_dequeue(buffer)) {
         int32_t status = ikcp_send(m_kcpHandle, (const char *)(buffer.const_data()), buffer.size());
@@ -123,6 +190,38 @@ void KcpContext::onUpdateTimeout()
             break;
         }
     }
+#else
+    // 一次最多发送大小
+    uint32_t maxSendSize = (MTU_SIZE - KCP_HEADER_SIZE) * 128; // IKCP_WND_RCV
+    uint32_t alreadySendSize = 0;   // 已发送大小
+    uint32_t sendSize = 0;          // 一次发送大小
+    {
+        AutoLock<Mutex> lock(m_bufMutex);
+        do {
+            // 剩余可发送大小
+            sendSize = static_cast<uint32_t>(m_sendBuffer.size()) - alreadySendSize;
+            // 一次最大发送大小
+            sendSize = sendSize > maxSendSize ? maxSendSize : sendSize;
+            const char *pBufferBegin = (const char *)(m_sendBuffer.const_data() + alreadySendSize);
+            int32_t status = ikcp_send(m_kcpHandle, pBufferBegin, sendSize);
+            if (status < 0) {
+                LOGE("ikcp_send error. %d", status);
+                break;
+            }
+            alreadySendSize += sendSize;
+        } while (false);
+
+        if (alreadySendSize > 0) {
+            uint32_t size = m_sendBuffer.size();
+            if (size == alreadySendSize) {
+                m_sendBuffer.clear();
+            } else { // alreadySendSize < size
+                const uint8_t *pStart = m_sendBuffer.const_data() + alreadySendSize;
+                m_sendBuffer.set(pStart, size - alreadySendSize);
+            }
+        }
+    }
+#endif
 
     ikcp_update(m_kcpHandle, static_cast<uint32_t>(KTimer::CurrentTime()));
 }

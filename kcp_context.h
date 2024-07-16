@@ -40,6 +40,15 @@ public:
     ~KcpContext();
 
     void installRecvEvent(ReadEventCB onRecvEvent);
+    /**
+     * @brief 设置发送缓存大小(默认16K)
+     * 
+     * @param size 区间: [4k, 4M]
+     */
+    void setSendBufferSize(uint32_t size);
+    uint32_t bufferCapacity();
+    uint32_t bufferSize();
+    bool send(const void *buffer, uint32_t size);
     bool send(const eular::ByteBuffer &buffer);
     bool send(eular::ByteBuffer &&buffer);
     void closeContext();
@@ -80,8 +89,13 @@ private:
     ReadEventCB     m_recvEvent;
     ContextCloseCB  m_closeEvent;
 
+#ifdef USE_BUFFER_QUEUE
     using LockFreeQueue = moodycamel::BlockingReaderWriterQueue<eular::ByteBuffer>;
     LockFreeQueue   m_sendBufQueue;
+#else
+    Mutex           m_bufMutex;
+    ByteBuffer      m_sendBuffer;
+#endif
 };
 
 } // namespace eular
