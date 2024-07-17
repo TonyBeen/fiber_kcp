@@ -55,6 +55,7 @@ int main(int argc, char **argv)
     eular::KcpContext::SP spClientContext = spClient->getContext();
     assert(spClientContext != nullptr);
     spClientContext->installRecvEvent(recvEventCB);
+    spClientContext->setSendBufferSize(16 * 1024);
 
     spClient->installDisconnectEvent([](eular::KcpContext::SP spContext) {
         LOGI("[%s:%d] disconnected", spContext->getPeerHost().c_str(), spContext->getPeerPort());

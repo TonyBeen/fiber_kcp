@@ -49,8 +49,7 @@ int main(int argc, char **argv)
         if (0 == data.strcasecmp("PING")) {
             eular::ByteBuffer bufResponse;
             const char *response = "PONG";
-            bufResponse.set((const uint8_t *)response, strlen(response));
-            spContex->send(std::move(bufResponse));
+            spContex->send(response, strlen(response));
         } else {
             spContex->send(buffer);
         }

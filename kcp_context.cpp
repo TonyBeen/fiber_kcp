@@ -79,6 +79,14 @@ uint32_t KcpContext::bufferSize()
     return static_cast<uint32_t>(m_sendBuffer.size());
 }
 
+uint32_t KcpContext::remainingSize()
+{
+    AutoLock<Mutex> lock(m_bufMutex);
+    auto cap = m_sendBuffer.capacity();
+    auto size = m_sendBuffer.size();
+    return static_cast<uint32_t>(cap - size);
+}
+
 bool KcpContext::send(const void *buffer, uint32_t size)
 {
 #ifdef USE_BUFFER_QUEUE
@@ -198,6 +206,11 @@ void KcpContext::onUpdateTimeout()
     {
         AutoLock<Mutex> lock(m_bufMutex);
         do {
+            // NOTE ikcp_send发送0字节会出现问题
+            if (m_sendBuffer.size() == 0) {
+                break;
+            }
+
             // 剩余可发送大小
             sendSize = static_cast<uint32_t>(m_sendBuffer.size()) - alreadySendSize;
             // 一次最大发送大小
@@ -208,6 +221,7 @@ void KcpContext::onUpdateTimeout()
                 LOGE("ikcp_send error. %d", status);
                 break;
             }
+
             alreadySendSize += sendSize;
         } while (false);
 
@@ -242,7 +256,6 @@ void KcpContext::onRecv(const eular::ByteBuffer &inputBuffer)
     m_recvBuffer.reserve(peekSize);
     m_recvBuffer.clear();
     int32_t nrecv = ikcp_recv(m_kcpHandle, (char *)m_recvBuffer.data(), peekSize);
-    LOGD("ikcp_recv size %d", nrecv);
     if (nrecv > 0) {
         m_recvBuffer.resize(nrecv);
         if (m_recvEvent) {

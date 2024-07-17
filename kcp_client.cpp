@@ -80,8 +80,6 @@ bool KcpClient::connect(const String8 &host, uint16_t port, KCPMode mode, uint32
         tv.tv_sec = timeout / 1000;
         tv.tv_usec = timeout % 1000 * 1000;
 
-        ElapsedTime elapsedTime(ElapsedTimeType::NANOSECOND);
-        elapsedTime.start();
         int32_t status = ::select(m_updSocket + 1, &fdSet, nullptr, nullptr, &tv);
         if (status < 0) {
             LOGE("Failed to select: [%d:%s]", errno, strerror(errno));
@@ -90,8 +88,7 @@ bool KcpClient::connect(const String8 &host, uint16_t port, KCPMode mode, uint32
             LOGW("Connection timed out");
             break;
         }
-        elapsedTime.stop();
-        LOGW("elapsed time: %lu ns {tv_sec = %d, tv_usec = %d}", elapsedTime.elapsedTime(), tv.tv_sec, tv.tv_usec);
+
         // 读取内容
         status = ::recvfrom(m_updSocket, bufProtoOutput, protocol::KCP_PROTOCOL_SIZE, 0, (sockaddr *)&recvAddr, &addrLen);
         if (status < 0) {

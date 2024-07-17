@@ -31,6 +31,11 @@ class KcpContext : public std::enable_shared_from_this<KcpContext>
 {
     friend class KcpServer;
     friend class KcpClient;
+    /**
+     * @brief Context关闭回调
+     * @param std::shared_ptr<KcpContext> 关闭的那个Context
+     * @param bool true 正常断开 false 快速断开
+     */
     typedef std::function<void(std::shared_ptr<KcpContext>, bool)>   ContextCloseCB;
 
 public:
@@ -41,13 +46,32 @@ public:
 
     void installRecvEvent(ReadEventCB onRecvEvent);
     /**
-     * @brief 设置发送缓存大小(默认16K)
-     * 
+     * @brief 设置发送缓存大小(默认32K)
+     *
      * @param size 区间: [4k, 4M]
      */
     void setSendBufferSize(uint32_t size);
+
+    /**
+     * @brief 缓存容量
+     *
+     * @return uint32_t
+     */
     uint32_t bufferCapacity();
+
+    /**
+     * @brief 已写入大小
+     *
+     * @return uint32_t
+     */
     uint32_t bufferSize();
+
+    /**
+     * @brief 可写入大小
+     *
+     * @return uint32_t
+     */
+    uint32_t remainingSize();
     bool send(const void *buffer, uint32_t size);
     bool send(const eular::ByteBuffer &buffer);
     bool send(eular::ByteBuffer &&buffer);

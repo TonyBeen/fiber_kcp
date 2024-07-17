@@ -90,6 +90,7 @@ void KcpServer::onReadEvent()
             continue;
         }
 
+        LOGD("recvfrom [%s] size = %d", utils::Address2String((sockaddr *)&peerAddr), realReadSize);
         m_kcpBuffer.resize(realReadSize);
         uint8_t *pHeaderBuf = m_kcpBuffer.data();
 
@@ -134,7 +135,6 @@ void KcpServer::onReadEvent()
 void KcpServer::onKcpDataReceived(const ByteBuffer &buffer, uint32_t conv, sockaddr_in peerAddr)
 {
     // 如果从半连接队列找到此会话, 关闭定时器并添加到Map
-
     for (auto synIt = m_synConnectQueue.begin(); synIt != m_synConnectQueue.end(); ++synIt) {
         if (synIt->conv == conv) {
             KcpManager::GetCurrentKcpManager()->delTimer(synIt->timerId);
