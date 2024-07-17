@@ -57,11 +57,12 @@ int main(int argc, char **argv)
     eular::KcpClient::SP spClient = std::make_shared<eular::KcpClient>();
     spClient->setWindowSize(1024, 1024);
     assert(spClient->bind("0.0.0.0"));
-    assert(spClient->connect(SERVER_IP, SERVER_PORT));
+    assert(spClient->connect(SERVER_IP, SERVER_PORT, KCPMode::Fast2));
 
     eular::KcpContext::SP spClientContext = spClient->getContext();
     assert(spClientContext != nullptr);
     spClientContext->installRecvEvent(recvEventCB);
+    spClientContext->setSendBufferSize(128 * 1024);
 
     spClient->installDisconnectEvent([](eular::KcpContext::SP spContext) {
         LOGI("[%s:%d] disconnected", spContext->getPeerHost().c_str(), spContext->getPeerPort());
